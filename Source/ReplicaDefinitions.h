@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common.h"
+
 enum LOT : long{
 	LOT_NONE = 0,
 	LOT_PLAYER = 1,
@@ -21,10 +23,15 @@ enum LOT : long{
 	LOT_SHIRT_ARMOR_BEIGE = 16081,
 	LOT_SHIRT_OLD_GREY = 16082,
 	LOT_JETPACK = 1727,
+	LOT_PROPERTY_JETPACK = 7292,
 	LOT_KINGS_CROWN = 8544,
 	LOT_UNKNOWN4 = 8642,
 	LOT_SHIELD_WOLF = 12677,
-	LOT_FANTASTIC_PILUM = 12730
+	LOT_FANTASTIC_PILUM = 12730,
+	LOT_NIGHTLASHER = 13275,
+	LOT_SLITHERSTRIKER = 13276,
+	LOT_ENERGY_SPORK = 13277,
+	LOT_ZAPZAPPER = 13278
 };
 
 enum REPLICA_PACKET_TYPE{
@@ -42,7 +49,7 @@ struct PLAYER_STATS{
 	unsigned long long EnemiesSmashed = 0;
 	unsigned long long RocketsUsed = 0;
 	unsigned long long MissionsCompleted = 0;
-	unsigned long long PetsTamed = 22;
+	unsigned long long PetsTamed = 0;
 	unsigned long long ImaginationPowerupsCollected = 0;
 	unsigned long long LifePowerupsCollected = 0;
 	unsigned long long ArmorPowerupsCollected = 0;

@@ -8,17 +8,19 @@
 	Added code and additional documentation done by Jon002 20.02.2015 (Character Creation, Custom Logins and success states, Dynamic Packets
 	for Auth and Char servers)
 
+	"SCREW THESE CREDITS" by Jonny (a.k.a CuzItsJonny)
+
 	This source code requires RakNet version 3.25 as an external dependency to work with the LU Client.
 
 	The source is open and free under the GPL License, Version 3 for use on a non-commercial basis
 */
 
-#include "Common.h"
 #include "serverLoop.h"
 #include "Database.h"
 #include "AccountsDB.h"
-#include "IniReader.h"
-#include "Common\Utility\Config.h"
+#include "FileConfiguration.h"
+#include "ServerDB.h"
+#include "Config.h"
 
 #include <sys/stat.h>
 #include <conio.h>
@@ -35,39 +37,32 @@
 	#include <sys/stat.h>
 #endif
 
-enum ServerRole : unsigned char{
-	ROLE_CONSOLE = 0,
-	ROLE_AUTH,
-	ROLE_WORLD,
-};
-
 void ConsoleLoop(){
 	// If quit is ever equal to true, quit the server
 	bool quit = false;
 
 	// Keep the server from quitting by using a infinite loop
 	while (!quit) {
-		if (_kbhit()) { // Parsing server commands. Press enter to start writing a command (may need to lock consoleoutmutex...)
-			std::string command; // Initialize command string...
+		//if (_kbhit()) { // Parsing server commands. Press enter to start writing a command (may need to lock consoleoutmutex...)
+			std::string rawCommand; // Initialize command string...
 			
 			std::cout << "> "; // Print "> " to show user where to type
-			std::cin >> command; // Get the command
+			std::cin >> rawCommand; // Get the command
+
+			std::vector<std::string> command = split(rawCommand, ' ');
 
 			// Match command to a pre-specified command here...
-			if (command == "help") {
+			if (command[0] == "help") {
 				std::stringstream str;
 				str << "Available commands:" << std::endl <<
 					"quit        = Quit the Server" << std::endl <<
 					"register    = Register New User" << std::endl <<
-					"sessions    = Show Number of sessions" << std::endl;
+					"sessions    = Show Number of sessions" << std::endl <<
+					"envcheck    = Checks environment" << std::endl;
 				std::cout << str.str();
 			}
-			else if (command == "quit") quit = LUNIterminate = true;
-			else if (command == "envcheck"){
-				Database::registerTables();
-				Database::checkEnv();
-			}
-			else if (command == "register") {
+			else if (command[0] == "quit") quit = LUNIterminate = true;
+			else if (command[0] == "register") {
 				std::string username, password;
 				std::cout << "Username: ";
 				std::cin >> username; // Get the username
@@ -84,11 +79,11 @@ void ConsoleLoop(){
 				}
 				else std::cout << "Username already exist!\n";
 			}
-			else if (command == "sessions"){
+			else if (command[0] == "sessions"){
 				std::cout << "Current session count: " << std::to_string(SessionsTable::count()) << std::endl;
 			}
-			else std::cout << "Invalid Command: " << command << "!" << std::endl;
-		}
+			else std::cout << "Invalid Command: " << command[0] << "!" << std::endl;
+		//}
 	}
 }
 
@@ -149,11 +144,10 @@ int main(int argc, char* argv[]) {
 	std::cout << " Server Log" << std::endl;
 	std::cout << "-----------------------------------------" << std::endl;
 	Logger::setLogFile("server.log");
-	Logger::log("MAIN", "", "Initializing LUNI test server...");
-	
+	Logger::log("MAIN", "", "Running update \"27.11.15_1\" | Initializing LUNI test server...\n");
+
 	// Args parser
 	int state = 0;
-	std::string configFile = "";
 	std::string setting = "";
 	ServerRole Role = ROLE_CONSOLE;
 
@@ -175,9 +169,12 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		case 0:
-			if (arg == "--config"){
-				state = 1;
-				Logger::log("WRLD", "ARGS", "config", LOG_ALL);
+			if (arg == "--console"){
+				Role = ROLE_CONSOLE;
+			}
+			if (arg == "--gConfig"){
+				Config::generateDefaultConfig();
+				Role = ROLE_CONSOLE;
 			}
 			if (arg == "--world"){
 				Role = ROLE_WORLD;
@@ -189,34 +186,21 @@ int main(int argc, char* argv[]) {
 				setting = "Auth";
 				state = 2;
 			}
-			break;
-		case 1:
-			configFile = argv[argi];
-			state = 0;
+			if (arg == "--chat"){
+				Role = ROLE_CHAT;
+				setting = "Chat";
+				state = 2;
+			}
 			break;
 		}
 	}
 
-	Configuration * config = new Configuration(configFile);
-
-	if (!config->isValid()){
-		Logger::log("MAIN", "CONFIG", "No config file has been loaded!", LOG_WARNING);
-		Logger::log("MAIN", "CONFIG", "Using default values.", LOG_WARNING);
-	}
-
-	Settings settings = config->getSettings();
-	MySQLSettings mysql = config->getMySQLSettings();
-
-	unsigned int db_connect_result = Database::Connect(mysql.host, mysql.database, mysql.username, mysql.password);
+	Database::Init(Config::getMySQLHost(), Config::getMySQLDatabase(), Config::getMySQLUsername(), Config::getMySQLPassword());
+	unsigned int db_connect_result = Database::Connect();
 	if (db_connect_result > 0){
 		QuitError("Could not connect to MYSQL database");
 	}
 	Logger::log("MAIN", "CONFIG", "Connected to mysql database!");
-
-	if (settings.redirect_ip == "127.0.0.1" || settings.redirect_ip == "localhost"){
-		Logger::log("MAIN", "WARNING", "AUTH will redirect to localhost, meaning MULTIPLAYER will NOT WORK", LOG_WARNING);
-		Logger::log("MAIN", "WARNING", "To fix this, set 'redirect_ip' to the public IP of this computer", LOG_WARNING);
-	}
 
 	// Create the directory .//logs// if it does not exist
 	_mkdir("logs");
@@ -232,16 +216,17 @@ int main(int argc, char* argv[]) {
 
 	// Start the two new threads (Auth and World servers)
 	if (Role == ROLE_AUTH){
-		CONNECT_INFO auth;
-		config->setServerSettings(auth, settings, setting);
-		AuthLoop(&auth);
+		AuthLoop();
 	}
-	if (Role == ROLE_WORLD){
-		CONNECT_INFO world;
-		config->setServerSettings(world, settings, setting);
-		WorldLoop(&world);
+	else if (Role == ROLE_WORLD){
+		WorldLoop();
 	}
-	if (Role == ROLE_CONSOLE) ConsoleLoop();
+	/*else if (Role == ROLE_CHAT){
+		ChatLoop();
+	}*/
+	else if (Role == ROLE_CONSOLE){
+		ConsoleLoop();
+	}
 
 	exit(0);
 }

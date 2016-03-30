@@ -791,7 +791,9 @@ public:
 	unsigned long getData2();
 	std::vector<COMPONENT17_EQUIPMENT> *getEquipment();
 	long equipItem(long long objid, unsigned short slot = 0);
+	long equipNPCItem(unsigned long lot, long long objid);
 	bool unequipItem(long long objid);
+	void unregisterItems();
 };
 
 #pragma endregion

@@ -3,6 +3,8 @@
 #include <mysql.h>
 
 #include "Database.h"
+#include "WorldServer.h"
+#include "WorldConnection.h"
 
 #include <string>
 #include <vector>
@@ -46,7 +48,7 @@ struct ListCharacterInfo{
 	CharacterInfo info;
 };
 
-class CharactersTable : public MySQLTable{
+class CharactersTable {
 private:
 	static ListCharacterInfo getCharacterInfo(MYSQL_RES *res);
 public:
@@ -62,12 +64,15 @@ public:
 	static long long add(CharacterStyle style, unsigned int accountid, CharacterInfo names);
 	static bool unapprovedNameExists(std::string unapprovedname);
 	static void setGMlevel(long long objid, unsigned short newLevel);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
+	static bool isCharacterAlive(long long objid);
+	static void killCharacter(long long objid);
+	static void resurrectCharacter(long long objid, bool bRezImmediately = false);
+	static void setCharacterMoney(long long objid, long long currency);
+	static long long getCharacterCurrency(long long objid);
+	static void CharactersTable::setCharacterName(long long objid, std::string newName);
 };
 
-class FriendsTable : public MySQLTable{
+class FriendsTable {
 public:
 	static void requestFriend(long long sender, long long reciever);
 	static void requestBestFriend(long long sender, long long reciever);
@@ -85,9 +90,6 @@ public:
 
 	static void accept(long long requester, long long accepter);
 	static void decline(long long requester, long long accepter);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
 };
 
 struct MISSION_DATA{
@@ -96,12 +98,12 @@ struct MISSION_DATA{
 	time_t timestamp;
 };
 
-class MissionsTable : public MySQLTable{
+class MissionsTable {
 public:
 	static std::vector<MISSION_DATA> getMissions(long long charid);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
+	static void addMission(long long charid, unsigned long missionid);
+	static void deleteMissions(long long charid);
+	static void offerMission(long long charid, unsigned long missionid, unsigned long offererid);
 };
 
 struct MailData{
@@ -116,13 +118,10 @@ struct MailData{
 	bool read;
 };
 
-class MailsTable : public MySQLTable{
+class MailsTable {
 public:
 	static void setIsRead(long long mailid);
 	static void deleteMail(long long mailid);
 	static void addMail(MailData data);
 	static std::vector<MailData> getMails(long long charid);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
 };

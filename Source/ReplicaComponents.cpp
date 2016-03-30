@@ -36,7 +36,7 @@ Component108::Component108() {
 }
 
 Component108::~Component108() {
-	
+
 }
 
 void Component108::writeToPacket(RakNet::BitStream *packet, REPLICA_PACKET_TYPE packetType) {
@@ -200,7 +200,7 @@ COMPONENT1_DATA6_3_1 ControllablePhysicsComponent::getData6_3_1(){ return this->
 #pragma region SimplePhysicsComponent (Component 3)
 
 SimplePhysicsComponent::SimplePhysicsComponent() {
-	this->flag1 = true;
+	this->flag1 = false;
 	this->data1 = 0.0;
 	this->flag2 = false;
 	this->flag3 = true;
@@ -214,9 +214,7 @@ SimplePhysicsComponent::~SimplePhysicsComponent() {
 void SimplePhysicsComponent::writeToPacket(RakNet::BitStream *packet, REPLICA_PACKET_TYPE packetType) {
 	if (packetType == REPLICA_CONSTRUCTION_PACKET) {
 		packet->Write(flag1);
-		if (flag1) {
-			packet->Write(data1);
-		}
+		packet->Write(data1);
 	}
 
 	packet->Write(flag2);
@@ -730,7 +728,7 @@ void CharacterComponent::writeToPacket(RakNet::BitStream *packet, REPLICA_PACKET
 		packet->Write(info.unknown);
 		packet->Write(info.legoScore);
 		packet->Write(info.isFreeToPlay);
-		
+
 		packet->Write(stats);
 		packet->Write(flag8a);
 		packet->Write(flag8b);
@@ -738,7 +736,7 @@ void CharacterComponent::writeToPacket(RakNet::BitStream *packet, REPLICA_PACKET
 			unsigned short size = data8.size();
 			packet->Write(size);
 			for (int i = 0; i < size; i++){
-				packet->Write((wchar_t) data8.at(i));
+				packet->Write((wchar_t)data8.at(i));
 			}
 		}
 	}
@@ -851,7 +849,7 @@ void InventoryComponent::writeToPacket(RakNet::BitStream *packet, REPLICA_PACKET
 			packet->Write(eq.d8);
 		}
 	}
-	bool f2 = (this->data2 > 0);
+	bool f2 = (this->data2 >= 0);
 	packet->Write(f2);
 	if (f2){
 		packet->Write(this->data2); //may be a count
@@ -884,6 +882,18 @@ long InventoryComponent::equipItem(long long objid, unsigned short slot){
 	return lot;
 }
 
+long InventoryComponent::equipNPCItem(unsigned long lot, long long objid) {
+	COMPONENT17_EQUIPMENT eqi;
+	eqi.objid = objid;
+	eqi.lot = lot;
+	eqi.slot = 0;
+	eqi.d6 = 0;
+	eqi.d8 = true;
+	this->equipment.push_back(eqi);
+
+	return lot;
+}
+
 bool InventoryComponent::unequipItem(long long objid){
 	std::vector<COMPONENT17_EQUIPMENT>::iterator it = std::find_if(this->equipment.begin(), this->equipment.end(), [&](const COMPONENT17_EQUIPMENT & o){
 		return o.objid == objid;
@@ -896,6 +906,10 @@ bool InventoryComponent::unequipItem(long long objid){
 		this->equipment.pop_back();
 	}
 	return true;
+}
+
+void InventoryComponent::unregisterItems() {
+
 }
 
 #pragma endregion
@@ -943,6 +957,8 @@ unsigned int SkillComponent::getComponentID(){ return 9; }
 
 BaseCombatAIComponent::BaseCombatAIComponent() {
 	flag1 = true;
+	data1 = 3; // Von mir!
+	data2 = 0; // Von mir!
 }
 
 BaseCombatAIComponent::~BaseCombatAIComponent() {

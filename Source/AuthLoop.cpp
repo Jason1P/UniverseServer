@@ -13,6 +13,7 @@
 #include "RakNet\PacketFileLogger.h"
 
 #include "Logger.h"
+#include "Config.h"
 #include "UtfConverter.h"
 #include "md5.h"
 
@@ -26,7 +27,7 @@ using namespace RakNet;
 		- Sending the response to the client
 		- Register the client in SessionsTable and UsersPool
 */
-void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* cfg) {
+void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet) {
 	//Make the packet data accessible via a bit stream
 	RakNet::BitStream *data = new RakNet::BitStream(packet->data, packet->length, false);
 	unsigned char packetID;
@@ -94,7 +95,12 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 		//Validating the input
 		//Set default values
 		UserSuccess currentLoginStatus = UserSuccess::SUCCESS;
+		std::string errorMessage = "";
 		//Ref<User> user = NULL;
+
+		SystemAddress serverAddr;
+		serverAddr.SetBinaryAddress(Config::getIP("World").c_str());
+		serverAddr.port = Config::getPort("World");
 		
 		//query the account id of the associated with the username from the database
 		unsigned int accountid = AccountsTable::getAccountID(usernameA);
@@ -105,7 +111,7 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 			//check if the password is correct
 			bool passwordCorrect = AccountsTable::checkPassword(passwordA, accountid);
 			AccountAccessInfo info = AccountsTable::getAccessInfo(accountid);
-
+			
 			if (info.locked || info.banned){
 				if (info.banned){
 					Logger::log("USER", "LOGIN", "User is BANNED");
@@ -136,10 +142,14 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 						currentLoginStatus = UserSuccess::INVALID_PASS;
 					}					
 				}
-				AccountsTable::setAccessInfo(accountid, info);
 			}
 		}
 
+		if (!WorldServer::isAvailable()) {
+			currentLoginStatus = UserSuccess::UNKNOWN2;
+			errorMessage = WorldServer::getAvailabilityMessage();
+			Logger::log("AUTH", "AVAILABILITY", "Disconnected user with message: '" + WorldServer::getAvailabilityMessage() + "'");
+		}
 		//respond to the client
 
 		LoginStatusPacket loginStatusPacket;
@@ -170,9 +180,9 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 		//loginStatusPacket.userKey = "0 9 4 e 7 0 1 a c 3 b 5 5 2 0 b 4 7 8 9 5 b 3 1 8 5 7 b f 1 c 3   ";
 
 		// Set chat IPs/Port and the other IP
-		loginStatusPacket.chatIp = "192.168.0.20"; //TODO: make dynamic
-		loginStatusPacket.chatPort = 2003;
-		loginStatusPacket.anotherIp = "192.168.0.20";
+		loginStatusPacket.chatIp = Config::getIP("Chat"); //TODO: make dynamic
+		loginStatusPacket.chatPort = Config::getPort("Chat");
+		loginStatusPacket.anotherIp = Config::getIP("Chat");
 
 		loginStatusPacket.possibleGuid = "00000000-0000-0000-0000-000000000000";
 
@@ -189,24 +199,18 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 
 		loginStatusPacket.zeroLongLong = 0;
 
-		loginStatusPacket.redirectIp = cfg->redirectIp;
-		loginStatusPacket.redirectPort = cfg->redirectPort;
+		loginStatusPacket.redirectIp = Config::getIP("World");
+		loginStatusPacket.redirectPort = Config::getPort("World");
 
-		// Set the error msg and the error msg length
-		// This message only shows
-		loginStatusPacket.errorMsg = "";
+		loginStatusPacket.errorMsg = errorMessage;
 		loginStatusPacket.errorMsgLength = loginStatusPacket.errorMsg.length();
 
 		std::string world_server_address;
 		
-		SystemAddress serverAddr;
-		serverAddr.SetBinaryAddress(cfg->redirectIp);
-		serverAddr.port = cfg->redirectPort;
-
 		int instanceid = InstancesTable::getInstanceId(serverAddr);
 		if (instanceid == -1){
 			loginStatusPacket.loginStatus = UserSuccess::UNKNOWN2;
-			loginStatusPacket.errorMsg = "Universe not available";
+			loginStatusPacket.errorMsg = "Universe not available!";
 			currentLoginStatus = UserSuccess::UNKNOWN2;
 			Logger::log("AUTH", "LOGIN", "INSTANCE UNAVAILABLE", LOG_ERROR);
 		}
@@ -223,13 +227,13 @@ void HandleUserLogin(RakPeerInterface* rakServer, Packet* packet, CONNECT_INFO* 
 	Logger::log("AUTH", "LOGIN", "Login failed", LOG_WARNING);
 }
 
-void AuthLoop(CONNECT_INFO* cfg) {
+void AuthLoop() {
 	// Initialize the RakPeerInterface used throughout the entire server
 	RakPeerInterface* rakServer = RakNetworkFactory::GetRakPeerInterface();
 
 	// Initialize the PacketFileLogger plugin (for the logs)
 	PacketFileLogger* msgFileHandler = NULL;
-	if (cfg->logFile) {
+	if (Config::getLogFile()) {
 		msgFileHandler = new PacketFileLogger();
 		rakServer->AttachPlugin(msgFileHandler);
 	}
@@ -239,19 +243,19 @@ void AuthLoop(CONNECT_INFO* cfg) {
 	//}
 
 	// Initialize security IF user has enabled it in config.ini
-	InitSecurity(rakServer, cfg->useEncryption);
+	InitSecurity(rakServer, Config::getUseEncryption());
 
 	// Initialize the SocketDescriptor
-	SocketDescriptor socketDescriptor(cfg->listenPort, 0);
+	SocketDescriptor socketDescriptor(Config::getPort("Auth"), 0);
 
 	// If the startup of the server is successful, print it to the console
 	// Otherwise, print an error
-	if (rakServer->Startup(8, 30, &socketDescriptor, 1)) {
-		Logger::log("AUTH", "", "started! Listening on port " + std::to_string(cfg->listenPort));
+	if (rakServer->Startup(10, 30, &socketDescriptor, 1)) {
+		Logger::log("AUTH", "", "started! Listening on port " + std::to_string(Config::getPort("Auth")));
 	} else QuitError("[AUTH] server init error!");
 
 	// Set max incoming connections to 8
-	rakServer->SetMaximumIncomingConnections(8);
+	rakServer->SetMaximumIncomingConnections(10);
 
 	// If msgFileHandler is initalized, use it to log the server in ./logs/auth
 	if (msgFileHandler != NULL) msgFileHandler->StartLog(".\\logs\\auth");
@@ -295,7 +299,7 @@ void AuthLoop(CONNECT_INFO* cfg) {
 					case AUTH: //user logging into server
 						{
 							// Handle the user login using the above method
-							HandleUserLogin(rakServer, packet, cfg);
+							HandleUserLogin(rakServer, packet);
 						}
 						break;
 

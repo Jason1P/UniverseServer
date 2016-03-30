@@ -51,12 +51,19 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)\Env\</OutDir>
+    <TargetName>LUNIServer</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)\Env\</OutDir>
+    <TargetName>LUNIServer</TargetName>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <AdditionalIncludeDirectories>MySql\include;ZLIB\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -102,26 +109,37 @@
   <ItemGroup>
     <ClInclude Include="Account.h" />
     <ClInclude Include="AccountsDB.h" />
+    <ClInclude Include="CDClientDB.h" />
     <ClInclude Include="Characters.h" />
     <ClInclude Include="CharactersDB.h" />
     <ClInclude Include="ChatCommands.h" />
     <ClInclude Include="Color.h" />
     <ClInclude Include="Common.h" />
-    <ClInclude Include="Common\Utility\Config.h" />
+    <ClInclude Include="Config.h" />
     <ClInclude Include="Database.h" />
     <ClInclude Include="Encryption.h" />
+    <ClInclude Include="EnemyObject.h" />
+    <ClInclude Include="EnvironmentalObject.h" />
     <ClInclude Include="Faction.h" />
     <ClInclude Include="AuthPackets.h" />
     <ClInclude Include="CharPackets.h" />
+    <ClInclude Include="FileConfiguration.h" />
     <ClInclude Include="GameMessages.h" />
     <ClInclude Include="IniReader.h" />
     <ClInclude Include="InventoryDB.h" />
     <ClInclude Include="LDF.h" />
     <ClInclude Include="Logger.h" />
+    <ClInclude Include="LootObject.h" />
+    <ClInclude Include="LUZFile.h" />
+    <ClInclude Include="LVLFile.h" />
     <ClInclude Include="md5.h" />
+    <ClInclude Include="NPCObject.h" />
+    <ClInclude Include="ObjectID.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="legoPackets.h" />
     <ClInclude Include="PlayerObject.h" />
+    <ClInclude Include="pugiconfig.hpp" />
+    <ClInclude Include="pugixml.hpp" />
     <ClInclude Include="Replica.h" />
     <ClInclude Include="ReplicaComponents.h" />
     <ClInclude Include="ReplicaData.h" />
@@ -131,10 +149,16 @@
     <ClInclude Include="ServerDB.h" />
     <ClInclude Include="serverLoop.h" />
     <ClInclude Include="Social.h" />
+    <ClInclude Include="SpawnerObject.h" />
+    <ClInclude Include="SQLiteDatabase.h" />
+    <ClInclude Include="SQLite\sqdb.h" />
+    <ClInclude Include="SQLite\sqlite3.h" />
+    <ClInclude Include="SQLite\sqlite3ext.h" />
     <ClInclude Include="TimeUtil.h" />
     <ClInclude Include="UtfConverter.h" />
     <ClInclude Include="World.h" />
     <ClInclude Include="WorldConnection.h" />
+    <ClInclude Include="WorldObjectsDB.h" />
     <ClInclude Include="Worlds.h" />
     <ClInclude Include="WorldServer.h" />
   </ItemGroup>
@@ -142,20 +166,30 @@
     <ClCompile Include="Account.cpp" />
     <ClCompile Include="AccountsDB.cpp" />
     <ClCompile Include="AuthLoop.cpp" />
+    <ClCompile Include="CDClientDB.cpp" />
     <ClCompile Include="Characters.cpp" />
     <ClCompile Include="CharactersDB.cpp" />
     <ClCompile Include="ChatCommands.cpp" />
     <ClCompile Include="Common.cpp" />
-    <ClCompile Include="Common\Utility\Config.cpp" />
+    <ClCompile Include="Config.cpp" />
     <ClCompile Include="Database.cpp" />
     <ClCompile Include="Encryption.cpp" />
+    <ClCompile Include="EnemyObject.cpp" />
+    <ClCompile Include="EnvironmentalObject.cpp" />
+    <ClCompile Include="FileConfiguration.cpp" />
     <ClCompile Include="GameMessages.cpp" />
     <ClCompile Include="IniReader.cpp" />
     <ClCompile Include="InventoryDB.cpp" />
     <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="LootObject.cpp" />
+    <ClCompile Include="LUZFile.cpp" />
+    <ClCompile Include="LVLFile.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="md5.cpp" />
+    <ClCompile Include="NPCObject.cpp" />
+    <ClCompile Include="ObjectID.cpp" />
     <ClCompile Include="PlayerObject.cpp" />
+    <ClCompile Include="pugixml.cpp" />
     <ClCompile Include="Replica.cpp" />
     <ClCompile Include="ReplicaComponents.cpp" />
     <ClCompile Include="ReplicaData.cpp" />
@@ -166,10 +200,15 @@
     <ClCompile Include="Packet.cpp" />
     <ClCompile Include="CharPackets.cpp" />
     <ClCompile Include="Social.cpp" />
+    <ClCompile Include="SpawnerObject.cpp" />
+    <ClCompile Include="SQLiteDatabase.cpp" />
+    <ClCompile Include="SQLite\sqdb.cpp" />
+    <ClCompile Include="SQLite\sqlite3.c" />
     <ClCompile Include="UtfConverter.cpp" />
     <ClCompile Include="World.cpp" />
     <ClCompile Include="WorldConnection.cpp" />
     <ClCompile Include="WorldLoop.cpp" />
+    <ClCompile Include="WorldObjectsDB.cpp" />
     <ClCompile Include="Worlds.cpp" />
     <ClCompile Include="WorldServer.cpp" />
   </ItemGroup>

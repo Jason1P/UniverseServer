@@ -31,7 +31,33 @@ struct RocketInfo{
 	}
 };
 
-class InventoryTable : public MySQLTable{
+enum ItemType : unsigned char {
+	INVALID = 0,
+	BRICK,
+	HAT,
+	HAIR,
+	NECK,
+	LEFT_HAND,
+	RIGHT_HAND,
+	LEGS,
+	LEFT_TRINKET,
+	RIGHT_TRINKET,
+	BEHAVIOR,
+	PROPERTY,
+	MODEL,
+	COLLECTABLE,
+	CONSUMABLE,
+	CHEST,
+	EGG,
+	PET_FOOD,
+	QUEST_OBJECT,
+	PET_INVENTORY_ITEM,
+	t20_PACKAGE,
+	LOOT_MODEL,
+	VEHICLE
+};
+
+class InventoryTable {
 private:
 	static void updateSlotOfItem(long long objid, long long charid, unsigned long newslot);
 public:
@@ -42,12 +68,9 @@ public:
 	static void insertItem(long long charid, long long objid, unsigned long qnt, unsigned long slot, bool linked);
 	static void deleteItem(long long charid, long long objid);
 	static std::vector<InventoryItem> getItems(long long charid);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
 };
 
-class ObjectsTable : public MySQLTable{
+class ObjectsTable {
 public:
 	//Get the LOT of an object
 	static long getTemplateOfItem(long long objid);
@@ -60,18 +83,13 @@ public:
 	//Custom Objects:
 	//Rocket (6416)
 	static RocketInfo getRocketInfo(long long objid);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
 };
 
-class EquipmentTable : public MySQLTable{
+class EquipmentTable {
 public:
 	static std::vector<long long> getItems(long long charid);
-	static void equipItem(long long charid, long long objectid);
+	static void equipItem(long long charid, long long objectid, unsigned long itemType);
+	static long long getFromItemType(long long charid, unsigned itemType);
 	static void unequipItem(long long charid, long long objectid);
 	static void deleteEquipment(long long charid);
-
-	std::string getName();
-	void mapTable(std::unordered_map<std::string, compare<ColData *> *> * data);
 };

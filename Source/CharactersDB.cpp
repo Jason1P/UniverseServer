@@ -1,6 +1,8 @@
 #include "CharactersDB.h"
+#include "AccountsDB.h"
 #include "Database.h"
 #include "Logger.h"
+#include "GameMessages.h"
 
 #include <sstream>
 #include <iostream>
@@ -188,34 +190,99 @@ void CharactersTable::setGMlevel(long long objid, unsigned short newLevel){
 	Database::Query(str.str());
 }
 
-std::string CharactersTable::getName(){
-	return "characters";
+bool CharactersTable::isCharacterAlive(long long objid){
+	std::stringstream str;
+	str << "SELECT `isAlive` FROM `characters` WHERE `objectID` = '" << objid << "';";
+	auto qr = Database::Query(str.str());
+	if (qr == NULL){
+		return true;
+	}
+	else{
+		if (mysql_num_rows(qr) == 1){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
 }
 
-void CharactersTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("bigint(20) unsigned", false, "", "0", ""));
-	Database::addColToMap(data, "accountID", new ColData("int(10) unsigned", false, "", "NULL", ""));
-	Database::addColToMap(data, "objectID", new ColData("bigint(20)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "name", new ColData("varchar(25)", false, "", "NULL", ""));
-	Database::addColToMap(data, "unapprovedName", new ColData("varchar(66)", false, "", "NULL", ""));
-	Database::addColToMap(data, "nameRejected", new ColData("tinyint(4)", false, "", "0", ""));
-	Database::addColToMap(data, "freeToPlay", new ColData("tinyint(4)", false, "", "0", ""));
-	Database::addColToMap(data, "gmlevel", new ColData("mediumint(9)", false, "", "0", ""));
-	Database::addColToMap(data, "shirtColor", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "shirtStyle", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "pantsColor", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "hairStyle", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "hairColor", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "lh", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "rh", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "eyebrows", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "eyes", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "mouth", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "lastZoneId", new ColData("int(11)", false, "", "NULL", ""));
-	Database::addColToMap(data, "mapInstance", new ColData("int(11)", false, "", "NULL", ""));
-	Database::addColToMap(data, "mapClone", new ColData("int(11)", false, "", "NULL", ""));
-	Database::addColToMap(data, "level", new ColData("int(3)", false, "", "1", ""));
-	Database::addColToMap(data, "uScore", new ColData("int(32)", false, "", "0", ""));
+void CharactersTable::killCharacter(long long objid){
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(objid));
+	RakNet::BitStream *bs = WorldServer::initPacket(RemoteConnection::CLIENT, ClientPacketID::SERVER_GAME_MSG);
+
+	bs->Write(s.activeCharId);
+	bs->Write((unsigned short)37);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+
+	std::stringstream eqqr;
+	eqqr << "UPDATE `characters` SET `isAlive`='0' WHERE `objectID` = '" << objid << "';";
+	Database::Query(eqqr.str());
+}
+
+void CharactersTable::resurrectCharacter(long long objid, bool bRezImmediately){
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(objid));
+	RakNet::BitStream *bs = WorldServer::initPacket(RemoteConnection::CLIENT, ClientPacketID::SERVER_GAME_MSG);
+
+	bs->Write(s.activeCharId);
+	bs->Write((unsigned short)160);
+	bs->Write(bRezImmediately);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+
+	std::stringstream eqqr;
+	eqqr << "UPDATE `characters` SET `isAlive`='1' WHERE `objectID` = '" << objid << "';";
+	Database::Query(eqqr.str());
+}
+
+void CharactersTable::setCharacterMoney(long long objid, long long currency) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(objid));
+	float f = 0.0;
+
+	RakNet::BitStream *bs = WorldServer::initPacket(RemoteConnection::CLIENT, ClientPacketID::SERVER_GAME_MSG);
+	bs->Write(objid);
+	bs->Write((unsigned short)133);
+	bs->Write(currency);
+	bs->Write(f);
+	bs->Write(f);
+	bs->Write(f);
+	
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+
+	std::stringstream eqqr;
+	eqqr << "UPDATE `characters` SET `currency`='" + std::to_string(currency) + "' WHERE `objectID` = '" << objid << "';";
+	Database::Query(eqqr.str());
+}
+
+long long CharactersTable::getCharacterCurrency(long long objid) {
+	std::stringstream qrs;
+	qrs << "SELECT `currency` FROM `characters` WHERE `objectID` = '" << std::to_string(objid) << "';";
+	std::string qrss = qrs.str();
+	auto qr = Database::Query(qrss);
+
+	if (mysql_num_rows(qr) == 0) {
+		return 0;
+	}
+	else {
+		auto r = mysql_fetch_row(qr);
+		return std::stoll(r[0]);
+	}
+}
+
+void CharactersTable::setCharacterName(long long objid, std::string newName) {
+	std::stringstream str;
+	str << "UPDATE `characters` SET `name`='" << newName << "' WHERE `objectID` = '" << objid << "';";
+	Database::Query(str.str());
 }
 
 void FriendsTable::requestFriend(long long sender, long long reciever){
@@ -384,17 +451,6 @@ void FriendsTable::decline(long long requester, long long accepter){
 	FriendsTable::setRequestStatus(requester, accepter, "DECLINED");
 }
 
-std::string FriendsTable::getName(){
-	return "friends";
-}
-
-void FriendsTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("int(11)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "charida", new ColData("bigint(20)", false, "", "NULL", ""));
-	Database::addColToMap(data, "charidb", new ColData("bigint(20)", false, "", "NULL", ""));
-	Database::addColToMap(data, "status", new ColData("enum('REQUEST','ACCEPTED','DECLINED','FRIENDS','BEST_FRIEND_REQUEST','BEST_FRIENDS')", false, "", "REQUEST", ""));
-}
-
 std::vector<MISSION_DATA> MissionsTable::getMissions(long long charid){
 	std::string qr = "SELECT `missionid`, `count`, UNIX_TIMESTAMP(`time`) FROM `missions` WHERE `character` = '" + std::to_string(charid) + "';";
 	auto qr2 = Database::Query(qr);
@@ -419,16 +475,31 @@ std::vector<MISSION_DATA> MissionsTable::getMissions(long long charid){
 	}
 }
 
-std::string MissionsTable::getName(){
-	return "missions";
+void MissionsTable::addMission(long long charid, unsigned long missionid){
+	std::stringstream eqqr;
+	eqqr << "INSERT INTO `luni`.`missions` (`id`, `character`, `missionid`) VALUES(NULL, '" << charid << "', '" << missionid << "');";
+	Database::Query(eqqr.str());
 }
 
-void MissionsTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("bigint(20)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "character", new ColData("bigint(20)", false, "", "NULL", ""));
-	Database::addColToMap(data, "missionid", new ColData("int(11)", false, "", "NULL", ""));
-	Database::addColToMap(data, "time", new ColData("timestamp", false, "", "CURRENT_TIMESTAMP", "on update CURRENT_TIMESTAMP"));
-	Database::addColToMap(data, "count", new ColData("smallint(6)", false, "", "1", ""));
+void MissionsTable::deleteMissions(long long charid){
+	std::stringstream eqqr;
+	eqqr << "DELETE FROM `missions` WHERE `character`='" << charid << "';";
+	Database::Query(eqqr.str());
+}
+
+void MissionsTable::offerMission(long long charid, unsigned long missionid, unsigned long offererid) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+	RakNet::BitStream *bs = WorldServer::initPacket(RemoteConnection::CLIENT, ClientPacketID::SERVER_GAME_MSG);
+
+	bs->Write(s.activeCharId);
+	bs->Write((unsigned short)248);
+	bs->Write((unsigned long)missionid);
+	bs->Write((unsigned long)offererid);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
 }
 
 void MailsTable::addMail(MailData data){
@@ -484,20 +555,4 @@ void MailsTable::deleteMail(long long mailid){
 	std::stringstream str;
 	str << "DELETE FROM `mails` WHERE `id` = '" << std::to_string(mailid) << "';";
 	Database::Query(str.str());
-}
-
-std::string MailsTable::getName(){
-	return "mails";
-}
-
-void MailsTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("bigint(20)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "subject", new ColData("text", false, "", "NULL", ""));
-	Database::addColToMap(data, "text", new ColData("text", false, "", "NULL", ""));
-	Database::addColToMap(data, "sender", new ColData("text", false, "", "NULL", ""));
-	Database::addColToMap(data, "recipient_id", new ColData("bigint(20)", false, "", "NULL", ""));
-	Database::addColToMap(data, "attachment", new ColData("bigint(20)", false, "", "0", ""));
-	Database::addColToMap(data, "attachment_count", new ColData("int(11)", false, "", "0", ""));
-	Database::addColToMap(data, "sent_time", new ColData("datetime", false, "", "CURRENT_TIMESTAMP", ""));
-	Database::addColToMap(data, "is_read", new ColData("tinyint(1)", false, "", "0", ""));
 }

@@ -70,7 +70,7 @@ void WorldServerPackets::CreateCharacter(SystemAddress address, long long charob
 	RakNet::BitStream * packet = WorldServer::initPacket(RemoteConnection::CLIENT, WorldServerPacketIds::MSG_CLIENT_CREATE_CHARACTER);
 	LDF *ldf = new LDF();
 	ldf->writeS64(L"accountID", s.accountid);
-	ldf->writeS32(L"chatmode", 0); //0 - Normal, 1 - Super
+	ldf->writeS32(L"chatmode", (long)(AccountsTable::getRank(s.accountid) > 0)); //0 - Normal, 1 - Super
 	ldf->writeBOOL(L"editor_enabled", false);
 	ldf->writeS32(L"editor_level", 0);
 	ldf->writeBOOL(L"freetrial", false);
@@ -100,7 +100,7 @@ void WorldServerPackets::CreateCharacter(SystemAddress address, long long charob
 	writeRaw(xml, "<skil/>");
 	writeRaw(xml, "<inv>");
 	writeRaw(xml, "<bag>");
-	writeRaw(xml, "<b t=\"0\" m=\"24\"/>"); //Items, Default size: 20
+	writeRaw(xml, "<b t=\"0\" m=\"128\"/>"); //Items, Default size: 20
 	writeRaw(xml, "</bag>");
 	writeRaw(xml, "<items>");
 	writeRaw(xml, "<in>");
@@ -157,11 +157,11 @@ void WorldServerPackets::CreateCharacter(SystemAddress address, long long charob
 	writeRaw(xml, "</inv>");
 	writeRaw(xml, "<mf/>");
 	writeRaw(xml, "<char cc=\"");
-	writeRaw(xml, std::to_string(100).c_str());
+	writeRaw(xml, std::to_string(CharactersTable::getCharacterCurrency(charobjid)).c_str());
 	writeRaw(xml, "\"></char>");
 	std::stringstream adddata;
 	adddata << "<lvl";
-	adddata << " l=\"6\""; //TODO: make dynamic
+	adddata << " l=\"69\""; //TODO: make dynamic
 	adddata << "/>";
 	writeRaw(xml, adddata.str());
 	writeRaw(xml, "<flag/>");

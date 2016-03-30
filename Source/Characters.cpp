@@ -8,6 +8,7 @@
 #include "CharPackets.h"
 #include "Logger.h"
 #include "WorldServer.h"
+#include "CDClientDB.h"
 
 bool Characters::CreateCharacter(RakNet::BitStream *packet, SystemAddress address, unsigned int accountid){
 	unsigned char creationStatus = 0;
@@ -73,7 +74,7 @@ bool Characters::CreateCharacter(RakNet::BitStream *packet, SystemAddress addres
 			if (CharactersTable::unapprovedNameExists(requestName)){
 				flag2 = false;
 			}
-			//if (flag2){ // Uncomment this line and comment the next line if you want to stop players from requesting character names that someone else already requested
+			// if (flag2){ // Uncomment this line and comment the next line if you want to stop players from requesting character names that someone else already requested
 			if (true){
 				Logger::log("GAME", "CHARS", "Adding Char to Database");
 
@@ -91,11 +92,14 @@ bool Characters::CreateCharacter(RakNet::BitStream *packet, SystemAddress addres
 				//Add them to the inventory and equip them
 				long long shirtObjid = ObjectsTable::createObject(shirtID);
 				InventoryTable::insertItem(charObjid, shirtObjid, 1, 0, true);
-				EquipmentTable::equipItem(charObjid, shirtObjid);
+				EquipmentTable::equipItem(charObjid, shirtObjid, CDClientDB::getItemType(CDClientDB::getComponentID(shirtID, 11)));
 
 				long long pantsObjid = ObjectsTable::createObject(pantsID);
 				InventoryTable::insertItem(charObjid, pantsObjid, 1, 1, true);
-				EquipmentTable::equipItem(charObjid, pantsObjid);
+				EquipmentTable::equipItem(charObjid, pantsObjid, CDClientDB::getItemType(CDClientDB::getComponentID(pantsID, 11)));
+
+				MissionsTable::addMission(charObjid, 1727);
+				// MissionsTable::addMission(charObjid, 173);
 			}
 			else{
 				Logger::log("GAME", "CHARS", "The requested name was already requested by someone else");
@@ -124,6 +128,15 @@ bool Characters::CreateCharacter(RakNet::BitStream *packet, SystemAddress addres
 void Characters::DeleteCharacter(unsigned int accountid, long long charid){
 	CharactersTable::deleteCharacter(charid);
 	AccountsTable::unsetFrontChar(accountid);
+
+	std::vector<long long> equipment = EquipmentTable::getItems(charid);
+	if (equipment.size() > 0){
+		for (uint i = 0; i < equipment.size(); i++){
+			ObjectsTable::deleteObject(equipment.at(i));
+		}
+	}
+
 	EquipmentTable::deleteEquipment(charid); //Delete Equipment entries
 	InventoryTable::deleteInventory(charid); //Delete inventory entries
+	MissionsTable::deleteMissions(charid);
 }

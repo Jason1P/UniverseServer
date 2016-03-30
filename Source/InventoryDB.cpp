@@ -1,6 +1,7 @@
 #include "InventoryDB.h"
 #include "Database.h"
 #include "Logger.h"
+#include "UtfConverter.h"
 
 #include <sstream>
 
@@ -86,19 +87,6 @@ std::vector<InventoryItem> InventoryTable::getItems(long long charid){
 	return items;
 }
 
-std::string InventoryTable::getName(){
-	return "inventory";
-}
-
-void InventoryTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("int(11)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "owner", new ColData("bigint(64)", false, "", "NULL", ""));
-	Database::addColToMap(data, "object", new ColData("bigint(64)", false, "", "NULL", ""));
-	Database::addColToMap(data, "qnt", new ColData("smallint(1) unsigned", false, "", "0", ""));
-	Database::addColToMap(data, "slot", new ColData("smallint(3) unsigned", false, "", "NULL", ""));
-	Database::addColToMap(data, "linked", new ColData("tinyint(1)", false, "", "0", ""));
-}
-
 long ObjectsTable::getTemplateOfItem(long long objid){
 	std::stringstream str;
 	str << "SELECT `template` FROM `objects` WHERE `objectid` = '" << objid << "';";
@@ -161,19 +149,6 @@ RocketInfo ObjectsTable::getRocketInfo(long long objid){
 	return RocketInfo(0,0,0);
 }
 
-std::string ObjectsTable::getName(){
-	return "objects";
-}
-
-void ObjectsTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "objectid", new ColData("bigint(64)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "template", new ColData("int(32) unsigned", false, "", "NULL", ""));
-	Database::addColToMap(data, "spawnid", new ColData("bigint(20)", true, "", "NULL", ""));
-	Database::addColToMap(data, "nose_cone_template", new ColData("int(11)", true, "", "NULL", ""));
-	Database::addColToMap(data, "cockpit_template", new ColData("int(11)", true, "", "NULL", ""));
-	Database::addColToMap(data, "engine_template", new ColData("int(11)", true, "", "NULL", ""));
-}
-
 std::vector<long long> EquipmentTable::getItems(long long charid){
 	auto qr = Database::Query("SELECT `object` FROM `equipment` WHERE `owner` = '" + std::to_string(charid) + "';");
 	
@@ -188,10 +163,27 @@ std::vector<long long> EquipmentTable::getItems(long long charid){
 	return items;
 }
 
-void EquipmentTable::equipItem(long long charid, long long objid){
+void EquipmentTable::equipItem(long long charid, long long objid, unsigned long itemType){
 	std::stringstream eqqr;
-	eqqr << "INSERT INTO `luni`.`equipment` (`id`, `owner`, `object`) VALUES(NULL, '" << charid << "', " << objid << ");";
+	eqqr << "INSERT INTO `luni`.`equipment` (`id`, `owner`, `object`, `itemType`) VALUES(NULL, '" << charid << "', '" << objid << "', '" << itemType << "');";
 	Database::Query(eqqr.str());
+}
+
+long long EquipmentTable::getFromItemType(long long charid, unsigned itemType) {
+	std::stringstream str;
+	str << "SELECT `object` FROM `equipment` WHERE `owner` = '" << charid << "' AND `itemType` = '" << itemType << "';";
+	auto qr = Database::Query(str.str());
+	if (qr == NULL){
+		return -1;
+	}
+	else{
+		if (mysql_num_rows(qr) > 0){
+			auto row = mysql_fetch_row(qr);
+			return std::stoll(row[0]);
+		}
+		else
+			return -1;
+	}
 }
 
 void EquipmentTable::unequipItem(long long charid, long long objid){
@@ -204,14 +196,4 @@ void EquipmentTable::deleteEquipment(long long charid){
 	std::stringstream eqqr;
 	eqqr << "DELETE FROM `equipment` WHERE `owner`='" << charid << "';";
 	Database::Query(eqqr.str());
-}
-
-std::string EquipmentTable::getName(){
-	return "equipment";
-}
-
-void EquipmentTable::mapTable(std::unordered_map<std::string, compare<ColData *> *> * data){
-	Database::addColToMap(data, "id", new ColData("int(11)", false, "PRI", "NULL", "auto_increment"));
-	Database::addColToMap(data, "owner", new ColData("bigint(20)", false, "", "NULL", ""));
-	Database::addColToMap(data, "object", new ColData("bigint(20)", false, "", "NULL", ""));
 }

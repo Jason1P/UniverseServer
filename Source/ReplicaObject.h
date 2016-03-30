@@ -14,6 +14,15 @@ public:
 	unsigned char gmlevel = 0;
 	World world;
 
+	bool isConstructed = true;
+
+	// Extra data - not completely necessary (but used in some things)
+	bool trigger_id = false;
+	long long spawnerObjID = 0;
+	long spawner_node_id = -1;
+	float floatData = -1.0;
+	char objectWorldState = -1;
+
 	~ReplicaObject();
 
 	// -- Specific Values -- 

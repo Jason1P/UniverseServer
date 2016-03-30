@@ -9,6 +9,8 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <map>
+#include <my_global.h>
 
 #include "RakNet\BitStream.h"
 
@@ -33,7 +35,12 @@ void QuitError(const std::string& msg = "");
 void writeWString(std::wstring str, RakNet::BitStream *stream, bool writeSize = true, bool nullChar = false);
 
 bool startsWith(std::wstring haystack, std::wstring needle);
+bool startsWith(std::string haystack, std::string needle);
 bool endsWith(std::wstring haystack, std::wstring needle);
+std::vector<std::string> split(std::string text, char sep);
 std::wstring removeRight(std::wstring str, unsigned int num);
 std::wstring removeLeft(std::wstring str, unsigned int num);
+std::string removeLeft(std::string str, unsigned int num);
 std::wstring remove(std::wstring str, unsigned int left, unsigned int right);
+bool isNumber(std::string str);
+bool doesFileExist(std::string filename);;

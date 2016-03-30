@@ -58,11 +58,14 @@
     <Filter Include="Source Files\Network\Connections">
       <UniqueIdentifier>{954f0790-a696-44f0-9685-c462ee48e43a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Database\SQLite">
+      <UniqueIdentifier>{3dfe94ff-09cd-4ceb-9d92-805f5eb2bb55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Database\SQLite">
+      <UniqueIdentifier>{83b223b9-adfc-45be-b2e5-ea8204d4fa77}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="serverLoop.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PlayerObject.h">
       <Filter>Header Files\Replica</Filter>
     </ClInclude>
@@ -165,11 +168,65 @@
     <ClInclude Include="IniReader.h">
       <Filter>Header Files\Common\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="Common\Utility\Config.h">
-      <Filter>Header Files\Common\Utility</Filter>
-    </ClInclude>
     <ClInclude Include="World.h">
       <Filter>Header Files\Database</Filter>
+    </ClInclude>
+    <ClInclude Include="NPCObject.h">
+      <Filter>Header Files\Replica</Filter>
+    </ClInclude>
+    <ClInclude Include="pugiconfig.hpp">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="pugixml.hpp">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldObjectsDB.h">
+      <Filter>Header Files\Database</Filter>
+    </ClInclude>
+    <ClInclude Include="FileConfiguration.h">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Config.h">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="SQLite\sqlite3.h">
+      <Filter>Header Files\Database\SQLite</Filter>
+    </ClInclude>
+    <ClInclude Include="SQLite\sqlite3ext.h">
+      <Filter>Header Files\Database\SQLite</Filter>
+    </ClInclude>
+    <ClInclude Include="SQLite\sqdb.h">
+      <Filter>Header Files\Database\SQLite</Filter>
+    </ClInclude>
+    <ClInclude Include="SQLiteDatabase.h">
+      <Filter>Header Files\Database\SQLite</Filter>
+    </ClInclude>
+    <ClInclude Include="CDClientDB.h">
+      <Filter>Header Files\Database</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectID.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="SpawnerObject.h">
+      <Filter>Header Files\Replica</Filter>
+    </ClInclude>
+    <ClInclude Include="LootObject.h">
+      <Filter>Header Files\Replica</Filter>
+    </ClInclude>
+    <ClInclude Include="EnvironmentalObject.h">
+      <Filter>Header Files\Replica</Filter>
+    </ClInclude>
+    <ClInclude Include="LUZFile.h">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="LVLFile.h">
+      <Filter>Header Files\Common\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="serverLoop.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyObject.h">
+      <Filter>Header Files\Replica</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -269,8 +326,53 @@
     <ClCompile Include="IniReader.cpp">
       <Filter>Source Files\Common\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Utility\Config.cpp">
+    <ClCompile Include="NPCObject.cpp">
+      <Filter>Source Files\Replica</Filter>
+    </ClCompile>
+    <ClCompile Include="pugixml.cpp">
       <Filter>Source Files\Common\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="WorldObjectsDB.cpp">
+      <Filter>Source Files\Database</Filter>
+    </ClCompile>
+    <ClCompile Include="FileConfiguration.cpp">
+      <Filter>Source Files\Common\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="Config.cpp">
+      <Filter>Source Files\Common\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="SQLite\sqlite3.c">
+      <Filter>Source Files\Database\SQLite</Filter>
+    </ClCompile>
+    <ClCompile Include="SQLite\sqdb.cpp">
+      <Filter>Source Files\Database\SQLite</Filter>
+    </ClCompile>
+    <ClCompile Include="SQLiteDatabase.cpp">
+      <Filter>Source Files\Database\SQLite</Filter>
+    </ClCompile>
+    <ClCompile Include="CDClientDB.cpp">
+      <Filter>Source Files\Database</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectID.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="SpawnerObject.cpp">
+      <Filter>Source Files\Replica</Filter>
+    </ClCompile>
+    <ClCompile Include="LootObject.cpp">
+      <Filter>Source Files\Replica</Filter>
+    </ClCompile>
+    <ClCompile Include="EnvironmentalObject.cpp">
+      <Filter>Source Files\Replica</Filter>
+    </ClCompile>
+    <ClCompile Include="LUZFile.cpp">
+      <Filter>Source Files\Common\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="LVLFile.cpp">
+      <Filter>Source Files\Common\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="EnemyObject.cpp">
+      <Filter>Source Files\Replica</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

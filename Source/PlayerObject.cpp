@@ -15,6 +15,21 @@
 //extern std::map<SystemAddress, ZoneId> Player;
 
 PlayerObject::PlayerObject(long long objid, std::wstring name){
+	switch (AccountsTable::getRank(CharactersTable::getAccountFromObjid(objid)))
+	{
+	case 0:
+		name += L" - Player";
+		break;
+	case 1:
+		name += L" - Moderator";
+		break;
+	case 2:
+		name += L" - Admin";
+		break;
+	default:
+		break;
+	}
+
 	this->objid = objid;
 	this->name = name;
 	this->LOT = 1UL;

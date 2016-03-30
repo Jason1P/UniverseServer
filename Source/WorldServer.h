@@ -21,4 +21,8 @@ public:
 	//Some helper functions
 	static void writeText(RakNet::BitStream * aw, std::string txt);
 	static void writeText2(RakNet::BitStream * aw, std::string txt);
+	static void setAvailable();
+	static void setUnavailable(std::string message = "The servers are currently under maintenance!");
+	static bool isAvailable();
+	static std::string getAvailabilityMessage();
 };

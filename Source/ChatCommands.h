@@ -2,6 +2,7 @@
 #include "AccountsDB.h"
 
 #include <vector>
+#include <iomanip>
 #include <unordered_map>
 
 class ChatCommandHandler{
@@ -61,14 +62,6 @@ class SwitchCommandHandler : public ChatCommandHandler{
 	std::wstring getSyntax();
 };
 
-class ItemsCommandHandler : public ChatCommandHandler{
-	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
-	std::vector<std::wstring> getCommandNames();
-	std::wstring getDescription();
-	std::wstring getShortDescription();
-	std::wstring getSyntax();
-};
-
 class AddItemCommandHandler : public ChatCommandHandler{
 	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
 	std::vector<std::wstring> getCommandNames();
@@ -118,6 +111,86 @@ class AnnouncementCommandHandler : public ChatCommandHandler{
 };
 
 class AdminCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class SpawnObjectCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class DeleteObjectCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class NearMeCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class DebugCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class SetMoneyCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class DanceCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class SetNameCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class PlayAnimationCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class EquipOfCommandHandler : public ChatCommandHandler{
+	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
+	std::vector<std::wstring> getCommandNames();
+	std::wstring getDescription();
+	std::wstring getShortDescription();
+	std::wstring getSyntax();
+};
+
+class TestSmashCommandHandler : public ChatCommandHandler{
 	void handleCommand(SessionInfo *s, std::vector<std::wstring> * params);
 	std::vector<std::wstring> getCommandNames();
 	std::wstring getDescription();

@@ -7,8 +7,11 @@
 #include "Packet.h"
 #include "Worlds.h"
 #include "WorldServer.h"
+#include "serverLoop.h"
 
 //extern ReplicaManager replicaManager;
+
+int i = 0;
 
 ReplicaObject::~ReplicaObject(){
 	this->deleteComponents();
@@ -50,17 +53,20 @@ void ReplicaObject::writeToPacket(RakNet::BitStream * packet, REPLICA_PACKET_TYP
 			packet->Write(this->name.at(k));
 		}
 
-		packet->Write(0UL);
-		packet->Write(false);
-		packet->Write(false);
-		packet->Write(false);
-		packet->Write(false);
-		packet->Write(false);
-		packet->Write(false);
+		packet->Write(3025001UL);
+		//packet->Write(0UL); // time_since_created_on_server (possibly)
+		packet->Write(false); // Compressed info... to be added later
+		packet->Write(trigger_id); // trigger_id
+		packet->Write((bool)(spawnerObjID > 0));
+		if (spawnerObjID > 0) { packet->Write(spawnerObjID); } // spawnerObjID
+		packet->Write((bool)(spawner_node_id >= 0));
+		if (spawner_node_id >= 0) { packet->Write(spawner_node_id); } // spawnerNodeID
+		packet->Write((bool)(floatData >= 0.0));
+		if (floatData >= 0.0) { packet->Write(floatData); } // Unknown floatData
+		packet->Write((bool)(objectWorldState >= 0));
+		if (objectWorldState >= 0) { packet->Write(objectWorldState); } // objectWorldState
 		packet->Write(this->gmlevel > 0);
-		if (this->gmlevel > 0){
-			packet->Write(this->gmlevel);
-		}
+		if (this->gmlevel > 0){ packet->Write(this->gmlevel); } // gmlevel
 	}
 	packet->Write(true);
 	packet->Write(false);
@@ -68,6 +74,40 @@ void ReplicaObject::writeToPacket(RakNet::BitStream * packet, REPLICA_PACKET_TYP
 
 	for (std::vector<ReplicaComponent *>::iterator it = components.begin(); it != components.end(); ++it){
 		(*it)->writeToPacket(packet, packetType);
+	}
+
+	if (packetType == REPLICA_PACKET_TYPE::REPLICA_CONSTRUCTION_PACKET) {
+		/*RakNet::BitStream bs;
+		bs.Write((char)0x24);
+		bs.Write((bool)true);
+		bs.Write((short)280);
+		bs.Write(packet);
+
+		std::stringstream ss;
+		ss << "ReplicaPacket_" << i << ".bin";
+		i++;
+
+		SavePacket(ss.str(), (char*)bs.GetData(), bs.GetNumberOfBytesUsed());*/
+
+		RakNet::BitStream bs;
+		bs.Write((char)0x27);
+		bs.Write((short)48608);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(false);
+		bs.Write(true);
+		bs.Write((long)1);
+		bs.Write((long long)1152921504606847070);
+
+		/*std::stringstream ss;
+		ss << "ReplicaPacket_" << i << ".bin";
+		i++;
+
+		SavePacket(ss.str(), (char*)bs.GetData(), bs.GetNumberOfBytesUsed());*/
 	}
 }
 
@@ -83,6 +123,7 @@ ReplicaReturnResult ReplicaObject::SendConstruction(RakNetTime currentTime, Syst
 	Logger::log("REPL", "OBJECT", "Send construction of '" + UtfConverter::ToUtf8(this->name) + "' to " + std::string(systemAddress.ToString()), LOG_DEBUG);
 	this->writeToPacket(outBitStream, REPLICA_CONSTRUCTION_PACKET);
 	WorldServer::getRM()->SetScope(this, true, systemAddress, false);
+
 	return REPLICA_PROCESSING_DONE;
 }
 

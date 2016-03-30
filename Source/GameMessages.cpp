@@ -1,96 +1,20 @@
 #include "GameMessages.h"
+#include "Common.h"
+#include "WorldServer.h"
+#include "AccountsDB.h"
+#include "Social.h"
+#include "FileConfiguration.h"
+#include "WorldObjectsDB.h"
 
 #include <map>
 #include <sstream>
 
-std::map<unsigned short, std::string> SpeedchatOptions;
-bool isSpeedchatInitialized = false;
+#include <chrono>
+#include <thread>
 
 std::map<long long, ObjectInformation> Objects;
 std::map<long long, ZoneId> LaunchPads;
 bool isObjectsInitialized = false;
-
-void initializeSpeedchatOptions(){
-	SpeedchatOptions[69] = "Action2/Oops";
-
-	SpeedchatOptions[115] = "Action/Tame Pet!";
-
-	SpeedchatOptions[175] = "Action/Applaud";
-
-	SpeedchatOptions[179] = "Feelings/Surprised";
-
-	SpeedchatOptions[182] = "Feelings/Shrug";
-	SpeedchatOptions[183] = "Feelings/Sigh";
-
-	SpeedchatOptions[185] = "Helper1/ThumbsUp";
-	SpeedchatOptions[186] = "Helper1/Hello";
-	SpeedchatOptions[187] = "Feelings2/Frustrated";
-
-	SpeedchatOptions[190] = "Helper1/Yes";
-
-	SpeedchatOptions[207] = "Dancing/MetalDance";
-	SpeedchatOptions[208] = "Dancing/FireDance";
-	SpeedchatOptions[209] = "Dancing/BreakDance";
-	SpeedchatOptions[210] = "Action/Cheer";
-
-	SpeedchatOptions[216] = "Feelings/Proud";
-
-	SpeedchatOptions[219] = "Feelings2/Fear";
-	SpeedchatOptions[220] = "Feelings/Laugh";
-
-	SpeedchatOptions[350] = "Feelings2/Bored";
-	SpeedchatOptions[351] = "Feelings2/Cry";
-	SpeedchatOptions[352] = "Action2/Shoo";
-	SpeedchatOptions[353] = "Helper2/Doh";
-	SpeedchatOptions[354] = "Action/Tap Foot"; //Automatically played after 5 min idle
-	SpeedchatOptions[355] = "Feelings2/Panic";
-	SpeedchatOptions[356] = "Action/Salute";
-	SpeedchatOptions[357] = "Helper2/Shrug";
-	SpeedchatOptions[358] = "Helper1/BRB"; //Automatically played after 10 min idle
-	SpeedchatOptions[359] = "Dancing/Dance";
-
-	SpeedchatOptions[361] = "Helper/No";
-	SpeedchatOptions[362] = "Helper2/JustKidding";
-	SpeedchatOptions[363] = "Feelings/Grin";
-	SpeedchatOptions[364] = "Action2/Kiss";
-
-	SpeedchatOptions[366] = "Helper1/ThumbsDown";
-
-	SpeedchatOptions[370] = "Helper2/Disagree";
-	SpeedchatOptions[371] = "Helper1/Thanks";
-	SpeedchatOptions[372] = "Action/Bye!";
-	SpeedchatOptions[373] = "Action/Courtsey";
-	SpeedchatOptions[374] = "Action/SitDown";
-	SpeedchatOptions[375] = "Action2/SenseiBow";
-	SpeedchatOptions[376] = "Action2/StudentBow";
-	SpeedchatOptions[377] = "Dancing/ChickenDance";
-	SpeedchatOptions[378] = "Dancing/RussianDance";
-	SpeedchatOptions[379] = "Dancing/FloorDance";
-	SpeedchatOptions[380] = "Dancing/JumpDance";
-	SpeedchatOptions[381] = "Dancing/SwayDance";
-	SpeedchatOptions[382] = "Dancing/RobotDance";
-	SpeedchatOptions[383] = "Action2/WormDance";
-	SpeedchatOptions[384] = "Action2/Sneeze";
-	SpeedchatOptions[385] = "Action2/Trip";
-	SpeedchatOptions[386] = "Action2/AirGuitar";
-	SpeedchatOptions[387] = "Feelings2/Tired";
-	SpeedchatOptions[388] = "Helper2/What???";
-	SpeedchatOptions[389] = "Helper1/YouReWelcome";
-	SpeedchatOptions[390] = "Helper2/PickMe!";
-	SpeedchatOptions[391] = "Helper2/Apologize";
-	SpeedchatOptions[392] = "Action/Roar!";
-	SpeedchatOptions[393] = "Action/DragonRoar!";
-	isSpeedchatInitialized = true;
-}
-
-
-std::string getSpeedchatMessage(unsigned short speedchatid){
-	if (!isSpeedchatInitialized) initializeSpeedchatOptions();
-	std::string name;
-	name = SpeedchatOptions[speedchatid];
-	if (name == "") return "[UNKNOWN]";
-	return name;
-}
 
 void initializeObject(ObjectInformation oinfo){
 	Objects[oinfo.objid] = oinfo;
@@ -453,4 +377,272 @@ ZoneId getLaunchPadTarget(ObjectInformation obj){
 		return LaunchPads[obj.objid];
 	}
 	return NO_ZONE;
+}
+
+void GameMSG::addSkill(long long charid, unsigned long skillid, unsigned long slot) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 127);
+	
+	for (int i = 0; i < 5; i++) {
+		bs->Write((bool)false);
+	}
+
+	bs->Write(skillid);
+	bs->Write((bool)true);
+	bs->Write(slot);
+	bs->Write((bool)true);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::castActiveSkill(long long charid, unsigned long someNumber) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 125);
+	bs->Write(someNumber);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::addItemToInventoryClientSync(long long charid, long long objectID, long lotTemplate, long slotid, bool showFlyingLoot) {
+	SystemAddress addr = SessionsTable::findCharacter(charid);
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 227);
+	bool f_true = true, f_false = false;
+	bs->Write(f_true);
+	bs->Write(f_true);
+	bs->Write(f_false);
+	bs->Write(f_false);
+	bs->Write((unsigned long)0);
+	bs->Write(lotTemplate);
+	
+	for (auto i = 0; i < 4; i++) {
+		bs->Write(f_false);
+	}
+
+	bs->Write(objectID);
+
+	for (auto i = 0; i < 3; i++) {
+		bs->Write((unsigned long)0);
+	}
+
+	bs->Write(showFlyingLoot);
+	bs->Write(slotid);
+
+	WorldServer::sendPacket(bs, addr);
+}
+
+void GameMSG::removeSkill(long long charid, unsigned long skillid) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 128);
+	bs->Write((bool)false);
+	bs->Write(skillid);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+//void GameMSG::setLoseCoinsOnDeath(long long charid, bool loseCoinsOnDeath) {
+//	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+//
+//	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 128);
+//	bs->Write(loseCoinsOnDeath);
+//
+//	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+//	for (unsigned int k = 0; k < sessionsz.size(); k++){
+//		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+//	}
+//}
+
+void GameMSG::playAnimation(long long charid, std::wstring animationID, bool playImmediate) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 43);
+	bs->Write((unsigned long)animationID.size());
+
+	for (int i = 0; i < animationID.size(); i++) {
+		bs->Write((char)animationID.at(i));
+		bs->Write((char)0);
+	}
+
+	bs->Write((bool)true);
+	bs->Write(playImmediate);
+	bs->Write((bool)true);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::setName(long long charid, std::wstring name) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 72);
+	bs->Write((unsigned long)name.size());
+
+	for (int i = 0; i < name.size(); i++) {
+		bs->Write((char)name.at(i));
+		bs->Write((char)0);
+	}
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::displayMessageBox(long long charid, long long callbackClient, std::wstring identifier, std::wstring text, std::wstring userData) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 0x0211);
+	bs->Write(true);
+	bs->Write(callbackClient);
+
+	bs->Write((unsigned long)identifier.size());
+	for (int i = 0; i < identifier.size(); i++) {
+		bs->Write((char)identifier.at(i));
+		bs->Write((char)0);
+	}
+
+	bs->Write((long)0);
+
+	bs->Write((unsigned long)text.size());
+	for (int i = 0; i < text.size(); i++) {
+		bs->Write((char)text.at(i));
+		bs->Write((char)0);
+	}
+
+	bs->Write((unsigned long)userData.size());
+	for (int i = 0; i < userData.size(); i++) {
+		bs->Write((char)userData.at(i));
+		bs->Write((char)0);
+	}
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::displayZoneSummary(long long charid, bool isProperty, bool isZoneStart) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 1043);
+	bs->Write(isProperty);
+	bs->Write(isZoneStart);
+	bs->Write((unsigned long long)charid);
+
+	WorldServer::sendPacket(bs, s.addr);
+}
+
+void GameMSG::teleport(long long charid, COMPONENT1_POSITION position) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 19);
+	bs->Write(false);
+	bs->Write(false);
+	bs->Write(false);
+
+	bs->Write(position.x);
+	bs->Write(position.y);
+	bs->Write(position.z);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::smash(long long objid, bool ignoreObjectVisibility, float force, float ghostOpacity, long long killerID) { // TODO: Fix!
+	WorldObjectInfo info = WorldObjectsTable::getObjectInfo(objid);
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(objid, 531);
+	bs->Write(ignoreObjectVisibility);
+	bs->Write(force);
+	bs->Write(ghostOpacity);
+	bs->Write(killerID);
+
+	std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(info.zone);
+	for (unsigned int k = 0; k < sessionsz.size(); k++){
+		WorldServer::sendPacket(bs, sessionsz.at(k).addr);
+	}
+}
+
+void GameMSG::setJetPackMode(long long charid, bool bypassChecks, bool doHover, bool use) { // TODO: Fix!
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 0x0231);
+	bs->Write(bypassChecks);
+	bs->Write(doHover);
+	bs->Write(use);
+
+	bs->Write(false); // effectID
+	bs->Write(false); // airSpeed
+	bs->Write(false); // maxAirSpeed
+	bs->Write(false); // vertVel
+	bs->Write(false); // warningEffectID
+
+	WorldServer::sendPacket(bs, s.addr);
+}
+
+void GameMSG::dropClientLoot(long long charid, float posX, float posY, float posZ, long currency, unsigned long LOT, long long objid, long long ownerid, long long sourceid) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 0x001e);
+	bs->Write(true);
+
+	bs->Write(true);
+	bs->Write(posX);
+	bs->Write(posY);
+	bs->Write(posZ);
+
+	bs->Write(currency);
+
+	bs->Write(LOT);
+	bs->Write(objid);
+
+	bs->Write(ownerid);
+	bs->Write(sourceid);
+
+	bs->Write(true);
+	bs->Write(posX);
+	bs->Write(posY);
+	bs->Write(posZ);
+
+	WorldServer::sendPacket(bs, s.addr);
+}
+
+void GameMSG::knockback(long long charid, long long casterid, float vecX, float vecY, float vecZ) {
+	SessionInfo s = SessionsTable::getClientSession(SessionsTable::findCharacter(charid));
+
+	RakNet::BitStream *bs = WorldServerPackets::InitGameMessage(charid, 0x00ca);
+	if (casterid > 0) {
+		bs->Write(true);
+		bs->Write(casterid);
+		bs->Write(true);
+		bs->Write(casterid);
+	}
+	else {
+		bs->Write(false);
+		bs->Write(false);
+	}
+
+	bs->Write(false);
+
+	bs->Write(vecX);
+	bs->Write(vecY);
+	bs->Write(vecZ);
+
+	WorldServer::sendPacket(bs, s.addr);
 }

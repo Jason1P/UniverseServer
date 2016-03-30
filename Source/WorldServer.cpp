@@ -1,4 +1,5 @@
 #include "WorldServer.h"
+#include "FileConfiguration.h"
 #include <stdio.h>
 
 RakPeerInterface * WorldServer::rakServer = NULL;
@@ -9,6 +10,7 @@ void WorldServer::publishWorldServer(RakPeerInterface* peer, ReplicaManager * rm
 	WorldServer::rakServer = peer;
 	WorldServer::replicaManager = rm;
 	WorldServer::addr = addr;
+	WorldServer::setAvailable();
 }
 
 ReplicaManager * WorldServer::getRM(){
@@ -171,4 +173,27 @@ void WorldServer::writeText2(RakNet::BitStream *aw, std::string txt){
 	for (unsigned char k = 0; k < txt.size(); k++){
 		aw->Write((unsigned char)txt.at(k));
 	}
+}
+
+void WorldServer::setAvailable() {
+	FileConfiguration fc = FileConfiguration::loadConfiguration(".\\..\\LegoUniverse_STORAGE\\info.cfg");
+	fc.writeBoolean("Availability.World.available", true);
+	fc.save();
+}
+
+void WorldServer::setUnavailable(std::string message) {
+	FileConfiguration fc = FileConfiguration::loadConfiguration(".\\..\\LegoUniverse_STORAGE\\info.cfg");
+	fc.writeBoolean("Availability.World.available", false);
+	fc.writeString("Availability.World.message", message);
+	fc.save();
+}
+
+bool WorldServer::isAvailable() {
+	FileConfiguration fc = FileConfiguration::loadConfiguration(".\\..\\LegoUniverse_STORAGE\\info.cfg");
+	return fc.readBoolean("Availability.World.available", false);
+}
+
+std::string WorldServer::getAvailabilityMessage() {
+	FileConfiguration fc = FileConfiguration::loadConfiguration(".\\..\\LegoUniverse_STORAGE\\info.cfg");
+	return fc.readString("Availability.World.message", "The servers are currently under maintenance!");
 }

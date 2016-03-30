@@ -7,12 +7,17 @@
 // -- Utility --
 #include "UtfConverter.h"
 #include "Logger.h"
+#include "Config.h"
+#include "pugixml.hpp"
+#include "LUZFile.h"
 
 // - Database - 
 #include "Database.h"
 #include "CharactersDB.h"
 #include "InventoryDB.h"
 #include "ServerDB.h"
+#include "WorldObjectsDB.h"
+#include "CDClientDB.h"
 
 // - Mechanics -
 #include "Account.h"
@@ -42,47 +47,47 @@
 #include "RakNet\PacketFileLogger.h"
 #include "RakNet\BitStream.h"
 #include "RakNet\ReplicaManager.h"
-// -- zlib (unused) --
-#include "zlib.h"
+
 // -- c++ --
 #include <conio.h>
 #include <cstdlib>
 #include <map>
 #include <iomanip>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
-
-void WorldLoop(CONNECT_INFO* cfg) {
+void WorldLoop() {
 	// Initialize the RakPeerInterface used throughout the entire server
 	RakPeerInterface* rakServer = RakNetworkFactory::GetRakPeerInterface();
 
 	// Initialize the PacketFileLogger plugin (for the logs)
 	PacketFileLogger* msgFileHandler = NULL;
-	if (cfg->logFile) {
+	if (Config::getLogFile()) {
 		msgFileHandler = new PacketFileLogger();
 		rakServer->AttachPlugin(msgFileHandler);
 	}
 
 	// Initialize security IF user has enabled it in config.ini
-	InitSecurity(rakServer, cfg->useEncryption);
+	InitSecurity(rakServer, Config::getUseEncryption());
 
 	// Initialize the SocketDescriptor
-	SocketDescriptor socketDescriptor(cfg->listenPort, 0);
+	SocketDescriptor socketDescriptor(Config::getPort("World"), 0);
 
 	SystemAddress ServerAddress;
-	ServerAddress.SetBinaryAddress(cfg->redirectIp);
-	ServerAddress.port = cfg->listenPort;
+	ServerAddress.SetBinaryAddress(Config::getIP("World").c_str());
+	ServerAddress.port = Config::getPort("World");
 	
 	// If the startup of the server is successful, print it to the console
 	// Otherwise, quit the server (as the char server is REQUIRED for the
 	// server to function properly)
-	if (rakServer->Startup(8, 30, &socketDescriptor, 1)) {
-		Logger::log("WRLD", "", "started! Listening on port " + std::to_string(cfg->listenPort));
+	if (rakServer->Startup(40, 30, &socketDescriptor, 1)) {
+		Logger::log("WRLD", "", "started! Listening on port " + std::to_string(Config::getPort("World")));
 		Instances::registerInstance(ServerAddress);
 	} else exit(2);
 
 	// Set max incoming connections to 8
-	rakServer->SetMaximumIncomingConnections(8);
+	rakServer->SetMaximumIncomingConnections(40);
 
 	// If msgFileHandler is not NULL, save logs of char server
 	if (msgFileHandler != NULL) msgFileHandler->StartLog(".\\logs\\world");
@@ -120,17 +125,130 @@ void WorldLoop(CONNECT_INFO* cfg) {
 
 	ChatCommandManager::registerCommands(new FlightCommandHandler());
 	ChatCommandManager::registerCommands(new TeleportCommandHandler());
-	ChatCommandManager::registerCommands(new WhisperCommandHandler());
+	//ChatCommandManager::registerCommands(new WhisperCommandHandler());
 	ChatCommandManager::registerCommands(new TestmapCommandHandler());
 	ChatCommandManager::registerCommands(new SwitchCommandHandler());
 	ChatCommandManager::registerCommands(new AddItemCommandHandler());
-	ChatCommandManager::registerCommands(new ItemsCommandHandler());
 	ChatCommandManager::registerCommands(new PositionCommandHandler());
 	ChatCommandManager::registerCommands(new ClientCommandHandler());
-	ChatCommandManager::registerCommands(new AttributeCommandHandler());
+	//ChatCommandManager::registerCommands(new AttributeCommandHandler());
 	ChatCommandManager::registerCommands(new PacketCommandHandler());
 	ChatCommandManager::registerCommands(new AnnouncementCommandHandler());
 	ChatCommandManager::registerCommands(new AdminCommandHandler());
+	ChatCommandManager::registerCommands(new SpawnObjectCommandHandler());
+	ChatCommandManager::registerCommands(new DeleteObjectCommandHandler());
+	ChatCommandManager::registerCommands(new NearMeCommandHandler());
+	//ChatCommandManager::registerCommands(new DebugCommandHandler());
+	ChatCommandManager::registerCommands(new SetMoneyCommandHandler());
+	ChatCommandManager::registerCommands(new DanceCommandHandler());
+	ChatCommandManager::registerCommands(new SetNameCommandHandler());
+	ChatCommandManager::registerCommands(new PlayAnimationCommandHandler());
+	ChatCommandManager::registerCommands(new EquipOfCommandHandler());
+	//ChatCommandManager::registerCommands(new TestSmashCommandHandler());
+
+	//pugi::xml_document objects;
+	//objects.load_file(".\\objects.xml");
+
+	//Logger::log("WRLD", "OBJECTS", "Starting to register LOTInfo...");
+	//for (pugi::xml_node row = objects.child("rows").first_child(); row; row = row.next_sibling()){
+	//	LOTInfoContainer* lotInfo = new LOTInfoContainer(row.attribute("id").as_uint(), row.attribute("name").as_string(), row.attribute("type").as_string());
+	//	LOTInfo::registerLOT(lotInfo->lot, lotInfo);
+	//}
+	//objects.~xml_document();
+	//Logger::log("WRLD", "OBJECTS", "Finished registering LOTInfo!");
+
+	Logger::log("WRLD", "NPCs", "Starting to register world objects...");
+	WorldServer::setUnavailable("The server is loading resources! Please try again in a few seconds...");
+	std::vector<unsigned long long> objects = WorldObjectsTable::getObjects();
+
+	std::vector<std::string> luzFiles;
+	
+	luzFiles.push_back("nd_space_ship.luz");
+	// luzFiles.push_back("nd_avant_gardens.luz");
+	// luzFiles.push_back("nd_nimbus_station.luz");
+
+	for (int i = 0; i < luzFiles.size(); i++) {
+		std::vector<unsigned char> data = OpenPacket(".\\Files\\" + luzFiles.at(i));
+
+		LUZFile luzFile = LUZFile(data);
+
+		std::vector<LVLFile> children = luzFile.getChildren();
+
+		for (int k = 0; k < children.size(); k++) {
+			std::vector<WorldObjectInfo> objects = children.at(k).getObjects();
+
+			for (int l = 0; l < objects.size(); l++) {
+				WorldObjectInfo info = objects.at(l);
+
+				std::string type = CDClientDB::getObjectType(info.LOT);
+
+				if (type == "NPC" || type == "UserGeneratedNPCs") {
+					NPCObject *npc = new NPCObject(info.LOT, info.zone);
+					npc->name = info.name;
+					npc->setPosition(info.posX, info.posY, info.posZ);
+					npc->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+					ObjectsManager::registerObject(npc);
+				}
+
+				else if (type == "Environmental" || type == "MovingPlatforms" || type == "Smashables") {
+					EnvironmentalObject *environmental = new EnvironmentalObject(info.LOT, info.zone);
+					environmental->setPosition(info.posX, info.posY, info.posZ);
+					environmental->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+					ObjectsManager::registerObject(environmental);
+				}
+
+				else if (type == "Enemies") {
+					EnemyObject *enemies = new EnemyObject(info.LOT, info.zone);
+					enemies->name = info.name;
+					enemies->setPosition(info.posX, info.posY, info.posZ);
+					enemies->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+					ObjectsManager::registerObject(enemies);
+				}
+			}
+		}
+	}
+	
+	if (objects.size() > 0){
+		for (int i = 0; i < objects.size(); i++){
+			WorldObjectInfo info = WorldObjectsTable::getObjectInfo(objects.at(i));
+
+			std::string type = CDClientDB::getObjectType(info.LOT);
+
+			if (type == "NPC" || type == "UserGeneratedNPCs") {
+				NPCObject *npc = new NPCObject(info.LOT, info.zone);
+				npc->name = info.name;
+				npc->setPosition(info.posX, info.posY, info.posZ);
+				npc->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+				WorldObjectsTable::updateTempObjID(objects.at(i), npc->objid);
+				ObjectsManager::registerObject(npc);
+			}
+
+			else if (type == "Environmental" || type == "MovingPlatforms" || type == "LEGO brick" || type == "Loot" || type == "Smashables" || type == "Rebuildables" || type == "LUP") {
+				EnvironmentalObject *environmental = new EnvironmentalObject(info.LOT, info.zone);
+				environmental->setPosition(info.posX, info.posY, info.posZ);
+				environmental->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+				WorldObjectsTable::updateTempObjID(objects.at(i), environmental->objid);
+				ObjectsManager::registerObject(environmental);
+			}
+
+			else if (type == "Enemies") {
+				EnemyObject *enemies = new EnemyObject(info.LOT, info.zone);
+				enemies->name = info.name;
+				enemies->setPosition(info.posX, info.posY, info.posZ);
+				enemies->setRotation(info.rotX, info.rotY, info.rotZ, info.rotW);
+
+				WorldObjectsTable::updateTempObjID(objects.at(i), enemies->objid);
+				ObjectsManager::registerObject(enemies);
+			}
+		}
+	}
+	WorldServer::setAvailable();
+	Logger::log("WRLD", "NPCs", "Finished registering world objects!");
 
 	bool LUNI_WRLD = true;
 	std::vector<unsigned char> buffer;
@@ -559,28 +677,40 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 
 			switch (msgid){
 			case 41:
-				unsigned short speedchatid;
-				data->Read(speedchatid);
-				Logger::log("WRLD", "SPEEDCHAT", getSpeedchatMessage(speedchatid), LOG_DEBUG);
-				unsigned long long rest;
-				data->Read(rest);
-				if (rest > 0) data->SetReadOffset(data->GetReadOffset() - 64); // Display Data when present
-				//Speedchat has more Information than I thought.
-				//When an object is nearby, it sends its objid with the speedchat packet
-				//This may be related to something like the quest in Avant Gardens
-				//where you have to salute to the Commander
-				unsigned short something;
-				data->Read(something);
-				if (data->GetNumberOfUnreadBits() > 0){
-					unsigned long long object;
-					data->Read(object);
-					ObjectInformation o = getObjectInformation(object);
-					Logger::log("WRLD", "SPEEDCHAT", "Object: " + std::to_string(object) + ", " + getObjectDescription(o, object));
-				}
+			{
+				SessionInfo s = SessionsTable::getClientSession(systemAddress);
+
+				unsigned short emoteid;
+				data->Read(emoteid);
+				unsigned long long target;
+				data->Read(target);
+
+				Logger::log("WRLD", "SPEEDCHAT", "TargetID: " + std::to_string(target));
+
+				unsigned long left = ((data->GetNumberOfUnreadBits() - 1) >> 3) + 1;
+				Logger::log("WRLD", "SPEEDCHAT", "Bytes left in stream: " + std::to_string(left));
+
+				std::wstring animationid = CDClientDB::getAnimationOfEmote(emoteid);
+				if (animationid != L"INVALID")
+					GameMSG::playAnimation(s.activeCharId, animationid);
+
 				printData = true;
+			}
+				break;
+			case 119:
+			{
+				// StartSkill
+				// TODO: Figure out!
+			}
 				break;
 			case 124:
 				//Happens on world join
+				break;
+			case 159:
+			{
+				SessionInfo s = SessionsTable::getClientSession(systemAddress);
+				CharactersTable::resurrectCharacter(s.activeCharId);
+			}
 				break;
 			case 224:
 			{
@@ -654,24 +784,80 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				PlayerObject *player = (PlayerObject *) ObjectsManager::getObjectByID(s.activeCharId);
 				if (player != NULL){
 					long lot = player->getComponent17()->equipItem(objid);
-					EquipmentTable::equipItem(s.activeCharId, objid);
-					ObjectsManager::serialize(player);
-					if (lot == LOT::LOT_JETPACK){
-						RakNet::BitStream * ef = WorldServerPackets::InitGameMessage(s.activeCharId, 561);
-						ef->Write((unsigned long)0x70ba);
-						ef->Write((unsigned short)0x8);
-						ef->Write((unsigned char)0x5);
-						ef->Write((unsigned char)0x2);
-						ef->Write((unsigned short)0xc);
-						ef->Write((unsigned char)0x3);
-						ef->Write((unsigned short)0x6c1);
-						ef->Write((unsigned char)0x0);
-						ef->Write((unsigned char)0x1);
-						ef->Write((unsigned char)0x80);
-						ef->Write((unsigned char)0x7f);
-						ef->Write((unsigned long)0xa7);
-						WorldServer::sendPacket(ef, systemAddress);
+
+					long long test = EquipmentTable::getFromItemType(s.activeCharId, CDClientDB::getItemType(CDClientDB::getComponentID(lot, 11)));
+					if (test != -1) {
+						bool un = player->getComponent17()->unequipItem(test);
+						if (!un){
+							Logger::log("WRLD", "EQUIP", "ERROR: item not found", LOG_ERROR);
+						}
+						else {
+							EquipmentTable::unequipItem(s.activeCharId, test);
+							unsigned long LOT = ObjectsTable::getTemplateOfItem(test);
+
+							unsigned long skillID = CDClientDB::getSkillID(LOT, 0);
+							if (LOT == LOT::LOT_SLITHERSTRIKER ||
+								LOT == LOT::LOT_NIGHTLASHER ||
+								LOT == LOT::LOT_ENERGY_SPORK ||
+								LOT == LOT::LOT_ZAPZAPPER)
+								skillID = 148;
+							if (skillID != -1)
+								GameMSG::removeSkill(s.activeCharId, skillID);
+
+							if (LOT == LOT::LOT_JETPACK || LOT == LOT::LOT_PROPERTY_JETPACK) {
+								std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+								for (unsigned int k = 0; k < sessionsz.size(); k++){
+									WorldServerPackets::SendGameMessage(sessionsz.at(k).addr, s.activeCharId, 561);
+								}
+							}
+						}
 					}
+
+					unsigned long itemType = CDClientDB::getItemType(CDClientDB::getComponentID(lot, 11));
+					EquipmentTable::equipItem(s.activeCharId, objid, itemType);
+
+					unsigned long hotbarslot = 4;
+					if (itemType == ItemType::HAIR || ItemType::HAT)
+						hotbarslot = 3;
+					if (itemType == ItemType::NECK)
+						hotbarslot = 2;
+					if (itemType == ItemType::RIGHT_HAND)
+						hotbarslot = 0;
+					if (itemType == ItemType::LEFT_HAND)
+						hotbarslot = 1;
+
+					unsigned long skillid = CDClientDB::getSkillID(lot, 0);
+					if (lot == LOT::LOT_SLITHERSTRIKER ||
+						lot == LOT::LOT_NIGHTLASHER ||
+						lot == LOT::LOT_ENERGY_SPORK ||
+						lot == LOT::LOT_ZAPZAPPER)
+						skillid = 148;
+					if (skillid != -1)
+						GameMSG::addSkill(s.activeCharId, skillid, hotbarslot);
+
+					if (lot == LOT::LOT_JETPACK) {
+						RakNet::BitStream *pc = WorldServerPackets::InitGameMessage(s.activeCharId, 561);
+
+						pc->Write((unsigned long)0x70ba);
+						pc->Write((unsigned short)0x8);
+						pc->Write((unsigned char)0x5);
+						pc->Write((unsigned char)0x2);
+						pc->Write((unsigned short)0xc);
+						pc->Write((unsigned char)0x3);
+						pc->Write((unsigned short)0x6c1);
+						pc->Write((unsigned char)0x0);
+						pc->Write((unsigned char)0x1);
+						pc->Write((unsigned char)0x80);
+						pc->Write((unsigned char)0x7f);
+						pc->Write((unsigned long)0xa7);
+
+						std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+						for (unsigned int k = 0; k < sessionsz.size(); k++){
+							WorldServer::sendPacket(pc, sessionsz.at(k).addr);
+						}
+					}
+
+					ObjectsManager::serialize(player);
 				}
 			}
 				break;
@@ -699,12 +885,25 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 					}
 					else{
 						EquipmentTable::unequipItem(s.activeCharId, objid);
-						ObjectsManager::serialize(player);
-						long lot = ObjectsTable::getTemplateOfItem(objid);
-						if (lot == LOT::LOT_JETPACK){
-							RakNet::BitStream ef;
-							WorldServerPackets::SendGameMessage(systemAddress, s.activeCharId, 561);
+						unsigned long LOT = ObjectsTable::getTemplateOfItem(objid);
+
+						unsigned long skillID = CDClientDB::getSkillID(LOT, 0);
+						if (LOT == LOT::LOT_SLITHERSTRIKER ||
+							LOT == LOT::LOT_NIGHTLASHER ||
+							LOT == LOT::LOT_ENERGY_SPORK ||
+							LOT == LOT::LOT_ZAPZAPPER)
+							skillID = 148;
+						if (skillID != -1)
+							GameMSG::removeSkill(s.activeCharId, skillID);
+
+						if (LOT == LOT::LOT_JETPACK || LOT == LOT::LOT_PROPERTY_JETPACK) {
+							std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+							for (unsigned int k = 0; k < sessionsz.size(); k++){
+								WorldServerPackets::SendGameMessage(sessionsz.at(k).addr, s.activeCharId, 561);
+							}
 						}
+
+						ObjectsManager::serialize(player);
 					}
 				}
 			}
@@ -715,15 +914,16 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				//There has to be a flag somewhere in here, with the speedchat messages I found out that it is offset by one bit.
 				//Normally all bits until there are 0, i'll check both sides to see if anything happens -> where the flag is
 				//TODO: Investigate
-				bool flag1;
-				data->Read(flag1);
-				data->SetReadOffset(data->GetReadOffset() - 1);
-				unsigned long long something3;
-				data->Read(something3);
-				bool flag;
-				data->Read(flag);
+				bool bIsMultiInteractUse;
+				data->Read(bIsMultiInteractUse);
+				unsigned long multiInteractID;
+				data->Read(multiInteractID);
+				unsigned long multiInteractType;
+				data->Read(multiInteractType);
 				unsigned long long object;
 				data->Read(object);
+				bool secondary;
+				data->Read(secondary);
 
 				//std::stringstream oss;
 				//data->SetReadOffset(data->GetReadOffset() - 32);
@@ -740,7 +940,37 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				//data->Read(something4);
 				
 				ObjectInformation o = getObjectInformation(object);
-				Logger::log("WRLD", "INTERACT", getObjectDescription(o, object));
+				SessionInfo s = SessionsTable::getClientSession(systemAddress);
+				//Logger::log("WRLD", "INTERACT", getObjectDescription(o, object));
+
+				ulonglong id = WorldObjectsTable::getID(object);
+				if (id != -1) {
+					WorldObjectInfo info = WorldObjectsTable::getObjectInfo(id);
+					
+					if (info.zone == ZoneId::VENTURE_EXPLORER && info.LOT == 4009) {
+						COMPONENT1_POSITION pos = getZoneSpawnPoint(ZoneId::NIMBUS_STATION, ZoneId::VENTURE_EXPLORER);
+						bool f = Worlds::loadWorld(s.addr, ZoneId::NIMBUS_STATION, pos, 0, 0);
+						if (f){
+							Session::leave(s.activeCharId);
+
+							WorldPlace place;
+							place.zoneID = ZoneId::NIMBUS_STATION;
+							place.mapClone = 0;
+							place.mapInstance = 0;
+							place.x = pos.x;
+							place.y = pos.y;
+							place.z = pos.z;
+
+							CharactersTable::setCharactersPlace(s.activeCharId, place);
+							ObjectsManager::clientLeaveWorld(s.activeCharId, s.addr);
+
+							Chat::sendMythranInfo(s.activeCharId, "This is where the party goes! ^^", "Welcome to NS!");
+						}
+						else{
+							Chat::sendChatMessage(s.addr, L"Cannot teleport to this zone");
+						}
+					}
+				}
 
 				bool b;
 				for (unsigned char a = 0; a < 7; a++) data->Read(b);
@@ -752,10 +982,10 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 			{
 				long long object;
 				data->Read(object);
-				//cout << "Object: " << object << std::endl;
 				ObjectInformation o = getObjectInformation(object);
-				Logger::log("WRLD", "LOAD?", getObjectDescription(o, object));
-				//Some sort of loading, L8: objid
+				Logger::log("WRLD", "PlayerLoad complete!", getObjectDescription(o, object));
+
+				GameMSG::displayZoneSummary(object, false, true);
 			}
 				break;
 			case 530:
@@ -837,6 +1067,10 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 
 				if (script == L"toggleMail"){
 					Mail::closeMailbox(s.activeCharId);
+				}
+				if (script == L"achieve"){
+					SessionInfo s = SessionsTable::getClientSession(systemAddress);
+					CharactersTable::killCharacter(s.activeCharId);
 				}
 			}
 				break;
@@ -978,24 +1212,32 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				//Some sort of loading, L8: objid
 			}
 				break;
+			case 1044:
+			{
+				SessionInfo s = SessionsTable::getClientSession(systemAddress);
+
+				long long playerid;
+				data->Read(playerid);
+				Logger::log("WRLD", "ZONESUMMARY", "PlayerID: " + std::to_string(playerid));
+
+				/*auto cinfo = CharactersTable::getCharacterInfo(s.activeCharId);
+
+				Worlds::loadWorld(s.addr, static_cast<ZoneId>(cinfo.lastPlace.zoneID), COMPONENT1_POSITION(cinfo.lastPlace.x, cinfo.lastPlace.y, cinfo.lastPlace.z));
+
+				Session::leave(s.activeCharId);
+				ObjectsManager::clientLeaveWorld(s.activeCharId, s.addr);*/
+			}
+				break;
 			case 1145:
 			{
-				bool flag;
-				data->Read(flag);
-				unsigned long d1;
-				data->Read(d1);
-				Logger::log("WRLD", "COMBAT", std::to_string(flag) + "|" + std::to_string(d1));
-				PacketTools::printBytes(data, d1);
-				unsigned long num1;
-				data->Read(num1);
-				unsigned long num2;
-				data->Read(num2);
-				Logger::log("WRLD", "COMBAT", std::to_string(num1) + "|" + std::to_string(num2));
+				// SyncSkill
+				// TODO: Figure out!
 			}
 				break;
 			case 1202:
 			{
-				Logger::log("WRLD", "HELP", "Smash me!", LOG_DEBUG);
+				SessionInfo s = SessionsTable::getClientSession(systemAddress);
+				CharactersTable::killCharacter(s.activeCharId);
 			}
 				break;
 			case 1308:
@@ -1084,7 +1326,7 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 			ListCharacterInfo cinfo = CharactersTable::getCharacterInfo(s.activeCharId);
 			
 			Logger::log("WRLD", "CHAT", cinfo.info.name + ": " + UtfConverter::ToUtf8(message));
-			Chat::broadcastChatMessage(s.zone, message, UtfConverter::FromUtf8(cinfo.info.name));
+			Chat::broadcastChatMessage(s.zone, message, UtfConverter::FromUtf8(cinfo.info.name), /*(cinfo.info.gmlevel > 0)*/ false);
 		}
 			break;
 		// 19
@@ -1112,21 +1354,21 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 
 				WorldServerPackets::CreateCharacter(systemAddress, objid);
 
-				PlayerObject * player = new PlayerObject(objid, UtfConverter::FromUtf8(cinfo.info.name));
+				PlayerObject *player = new PlayerObject(objid, UtfConverter::FromUtf8(cinfo.info.name));
 
 				//Temporarily ?
 				player->gmlevel = (unsigned char) cinfo.info.gmlevel;
 				player->world.zone = zid;
 
-				ControllablePhysicsComponent * c1 = player->getComponent1();
+				ControllablePhysicsComponent *c1 = player->getComponent1();
 				c1->setPosition(pos);
 
-				CharacterComponent * c4 = player->getComponent4();
-				c4->setLevel(6);
+				CharacterComponent *c4 = player->getComponent4();
+				c4->setLevel(69);
 				PLAYER_INFO pi;
 				pi.accountID = s.accountid;
 				pi.isFreeToPlay = cinfo.info.isFreeToPlay;
-				pi.legoScore = 600;
+				pi.legoScore = 0;
 				c4->setInfo(pi);
 				PLAYER_STYLE ps;
 				ps.eyebrowsStyle = cinfo.style.eyebrows;
@@ -1138,14 +1380,17 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				ps.shirtColor = cinfo.style.shirtColor;
 				c4->setStyle(ps);
 
-				DestructibleComponent * c7 = player->getComponent7();
+				DestructibleComponent *c7 = player->getComponent7();
 				COMPONENT7_DATA4 d4 = c7->getData4();
-				d4.health = 5;
-				d4.maxHealthN = 5.0F;
-				d4.maxHealth = 5.0F;
+				d4.health = 4;
+				d4.maxHealthN = 4.0F;
+				d4.maxHealth = 4.0F;
+				d4.imagination = 20;
+				d4.maxImagination = 20.0F;
+				d4.maxImaginationN = 20.0F;
 				c7->setData4(d4);
 
-				InventoryComponent * c17 = player->getComponent17();
+				InventoryComponent *c17 = player->getComponent17();
 				std::vector<long long> equip = EquipmentTable::getItems(objid);
 				for (unsigned int k = 0; k < equip.size(); k++){
 					c17->equipItem(equip.at(k));
@@ -1159,14 +1404,64 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 				WorldServerPackets::SendGameMessage(systemAddress, objid, 1642);
 				WorldServerPackets::SendGameMessage(systemAddress, objid, 509);
 
+				equip = EquipmentTable::getItems(objid);
+				for (unsigned int k = 0; k < equip.size(); k++){
+					unsigned long LOT = ObjectsTable::getTemplateOfItem(equip.at(k));
+					unsigned long itemType = CDClientDB::getItemType(CDClientDB::getComponentID(LOT, 11));
+
+					if (LOT == LOT::LOT_JETPACK) {
+						RakNet::BitStream *pc = WorldServerPackets::InitGameMessage(s.activeCharId, 561);
+
+						pc->Write((unsigned long)0x70ba);
+						pc->Write((unsigned short)0x8);
+						pc->Write((unsigned char)0x5);
+						pc->Write((unsigned char)0x2);
+						pc->Write((unsigned short)0xc);
+						pc->Write((unsigned char)0x3);
+						pc->Write((unsigned short)0x6c1);
+						pc->Write((unsigned char)0x0);
+						pc->Write((unsigned char)0x1);
+						pc->Write((unsigned char)0x80);
+						pc->Write((unsigned char)0x7f);
+						pc->Write((unsigned long)0xa7);
+
+						std::vector<SessionInfo> sessionsz = SessionsTable::getClientsInWorld(s.zone);
+						for (unsigned int k = 0; k < sessionsz.size(); k++){
+							WorldServer::sendPacket(pc, sessionsz.at(k).addr);
+						}
+					}
+
+					unsigned long hotbarslot = 4;
+					if (itemType == ItemType::HAIR || itemType == ItemType::HAT)
+						hotbarslot = 3;
+					if (itemType == ItemType::NECK)
+						hotbarslot = 2;
+					if (itemType == ItemType::RIGHT_HAND)
+						hotbarslot = 0;
+					if (itemType == ItemType::LEFT_HAND)
+						hotbarslot = 1;
+
+					unsigned long skillID = CDClientDB::getSkillID(LOT, 0);
+					if (LOT == LOT::LOT_SLITHERSTRIKER ||
+						LOT == LOT::LOT_NIGHTLASHER ||
+						LOT == LOT::LOT_ENERGY_SPORK ||
+						LOT == LOT::LOT_ZAPZAPPER)
+						skillID = 148;
+					if (skillID != -1)
+						GameMSG::addSkill(s.activeCharId, skillID, hotbarslot);
+				}
+
 				RakNet::BitStream *pc = WorldServerPackets::InitGameMessage(objid, 472);
 				pc->Write((unsigned long)185);
 				pc->Write((unsigned char)0);
 				WorldServer::sendPacket(pc, systemAddress);
 
 				Session::enter(s.activeCharId, zid);
+
+				CharactersTable::resurrectCharacter(s.activeCharId, true);
+
 				Logger::log("WRLD", "PARSER", "Client: Level loading complete " + zid);
-			}			
+			}		
 		}
 			break;
 		// 21
@@ -1237,6 +1532,78 @@ void parsePacket(RakPeerInterface* rakServer, SystemAddress &systemAddress, RakN
 						c1->setAngularVelocity(COMPONENT1_VELOCITY_ANGULAR(0, 0, 0));
 					}
 					ObjectsManager::serialize(player); //player->serialize();
+
+					World pWorld = player->world;
+					if (pWorld.zone == ZoneId::VENTURE_EXPLORER || pWorld.zone == ZoneId::VENTURE_EXPLORER_RETURN){
+						if (y < 555) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::AVANT_GARDENS){
+						if (y < 255) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::BLOCK_YARD || pWorld.zone == ZoneId::AVANT_GROVE || pWorld.zone == ZoneId::NIMBUS_ROCK || pWorld.zone == ZoneId::CHANTEY_SHANTEY || pWorld.zone == ZoneId::RAVEN_BLUFF){
+						if (y < 375) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::NIMBUS_ISLE){
+						if (y < 445) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::GNARLED_FOREST){
+						if (y < 165) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::CANYON_COVE){
+						if (y < 210) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::FORBIDDEN_VALLEY){
+						if (y < 60) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::STARBASE_3001){
+						if (y < 900) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::LEGO_CLUB){
+						if (y < 800) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
+					if (pWorld.zone == ZoneId::CRUX_PRIME){
+						if (y < -20) {
+							if (CharactersTable::isCharacterAlive(i.activeCharId)){
+								CharactersTable::killCharacter(i.activeCharId);
+							}
+						}
+					}
 				}
 				else{
 					//Player is null????

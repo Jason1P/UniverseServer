@@ -2,6 +2,7 @@
 #include "World.h"
 #include "ReplicaComponents.h"
 
+#include "Common.h"
 #include <vector>
 
 enum CHAR_STYLE_HAIR : unsigned long{
@@ -148,5 +149,5 @@ enum CHAR_STYLE_MOUTH : unsigned long {
 	MOUTH_BLUE = 61, //Makes Head white
 };
 
-std::vector<unsigned char> getWorldTarget(ZoneId zonde_id);
+std::vector<uchar> getWorldTarget(ZoneId zonde_id);
 COMPONENT1_POSITION getZoneSpawnPoint(ZoneId zone_id, ZoneId from_zone_id = NO_ZONE);
