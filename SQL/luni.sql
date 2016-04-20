@@ -7,7 +7,8 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 /* Remove create table; Linux cPanel couldn't import table for some reason; Removing this made it work 
-Also includes Jonny's SQL Code that has a table called World_Objects that holds all spawned objects in game */
+Also includes Jonny's SQL Code that has a table called World_Objects that holds all spawned objects in game 
+*/
 
 CREATE TABLE IF NOT EXISTS `accounts` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
