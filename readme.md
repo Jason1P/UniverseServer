@@ -3,6 +3,7 @@
 1) SHA512 Hashing 
   
   - Okay, since we get a lot of heat for our current file for SHA512 hashing, I will explain it, it IS not set up correctly because all default files are setup to work to WITH md5.h & md5.cpp. You can rename the SHA512 files to md5.
+
 2) Server Issues
   
   - Our server is run on CuzitsJonny's source code. We give him full credit as we did not make this code. Its not a full version of LEGO Universe which mean it can be unstable
