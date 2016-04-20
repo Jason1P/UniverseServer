@@ -1,3 +1,7 @@
+// Change this to md5.cpp to make it work with all other files and also to not go in every file and change the path from md5.cpp to sha512.cpp
+
+
+
 #include <cstring>
 #include <fstream>
 #include "sha512.h"
