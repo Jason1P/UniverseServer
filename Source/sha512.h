@@ -1,3 +1,5 @@
+// Change this to md5.h to make it work with all other files and also to not go in every file and change the path from md5.h to sha512.h
+
 #ifndef SHA512_H
 #define SHA512_H
 #include <string>
