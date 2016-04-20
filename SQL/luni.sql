@@ -6,8 +6,8 @@ SET time_zone = "+00:00";
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
 /*!40101 SET NAMES utf8mb4 */;
 
-CREATE DATABASE IF NOT EXISTS `luni` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
-USE `luni`;
+/* Remove create table; Linux cPanel couldn't import table for some reason; Removing this made it work 
+Also includes Jonny's SQL Code that has a table called World_Objects that holds all spawned objects in game */
 
 CREATE TABLE IF NOT EXISTS `accounts` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
